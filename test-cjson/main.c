@@ -30,5 +30,5 @@ main.c
 #include <stdarg.h>
 int main(int argc,char* argv[])
 {
-printf("byebye!\n");	
+	test_get_config();
 }

@@ -168,12 +168,20 @@ int get_config_heart_ser(json_object* j_cfg,struct config_st* c )
 		return -1;
 	}
 	o = json_object_object_get(j_, "INTERVAL");
+	
 	o_type = json_object_get_type(o);
+	
+	
 	if(json_type_int == o_type)
 	{
 		heart->interval = json_object_get_int(o);
+		log("intval %d",heart->interval);
 	}
-	
+	else if (json_type_string == o_type)
+	{
+		heart->interval = atoi(convert_json_to_str(o));
+	}
+	log("intval %d",heart->interval);
 
 	str = json_common_get_string(j_,"URL");
 	if(str != NULL)
@@ -204,6 +212,10 @@ int get_config_callcenter(json_object* j_cfg,struct config_st* c )
 	{
 		call->port = json_object_get_int(o);
 	}
+	else if (json_type_string == o_type)
+	{
+		call->port = atoi(convert_json_to_str(o));
+	}
 	
 
 	str = json_common_get_string(j_,"IP");
@@ -233,6 +245,8 @@ int get_config_pwd(json_object* j_cfg,struct config_st* c )
 	return 0;
 }
 
+
+
 int get_config_tape(json_object* j_cfg,struct config_st* c )
 {	
 	char* str;
@@ -252,12 +266,20 @@ int get_config_tape(json_object* j_cfg,struct config_st* c )
 	{
 		tape->spareport = json_object_get_int(o);
 	}
+	else if (json_type_string == o_type)
+	{
+		tape->spareport = atoi(convert_json_to_str(o));
+	}
 	
 	o = json_object_object_get(j_, "MAINPORT");
 	o_type = json_object_get_type(o);
 	if(json_type_int == o_type)
 	{
 		tape->mainport = json_object_get_int(o);
+	}
+	else if (json_type_string == o_type)
+	{
+		tape->mainport = atoi(convert_json_to_str(o));
 	}
 	
 	str = json_common_get_string(j_,"MAINIP");
@@ -303,7 +325,7 @@ int show_config(struct config_st* c)
 	
 	log("heart server:");
 	log("URL %s",c->heart_ser.url);
-	log("intval %s",c->heart_ser.interval);
+	log("intval %d",c->heart_ser.interval);
 	
 	log("callcenter server:");
 	log("ip %x",c->call.ip);
@@ -318,4 +340,13 @@ int show_config(struct config_st* c)
 	log("password :");
 	
 	log("pawd %s",c->pwd.password);
+	log("\n");
+}
+
+void test_get_config()
+{
+	struct config_st c;
+	memset(&c,0,sizeof(c));
+	get_config(&c);
+	show_config(&c);
 }

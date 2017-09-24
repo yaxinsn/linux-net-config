@@ -20,8 +20,8 @@ $(progam_src:.c=.o): %.o : %.c
 
 
 main: $(progam_obj)
-	$(CC) $(LDFLAGS) -Wl,-rpath=./  -L./json-c/.libs  -ljson-c $^ $(LIB) -o $@ 
-#	$(CC) $(LDFLAGS) -Wl,-rpath=./   -ljson-c -L./json-c/.libs $^ $(LIB) -o $@ 
+#	$(CC) $(LDFLAGS) -Wl,-rpath=./  -L./json-c/.libs  -ljson-c $^ $(LIB) -o $@ 
+	$(CC) $(LDFLAGS) -Wl,-rpath=./   -ljson-c -L./json-c/.libs $^ $(LIB) -o $@ 
 #	$(CC) $(LDFLAGS) -Wl,-rpath=./  $^ -o $@ -L./ ./json-c/.libs/libjson-c.so
 
 
