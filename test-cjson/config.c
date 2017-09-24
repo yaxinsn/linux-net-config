@@ -29,6 +29,9 @@ config
 #include <netinet/in.h>
 #include <netinet/ip.h> /* superset of previous */
 #include <stdio.h>
+#include "log.h"
+#include "json.h"
+
 /*
 
           
@@ -43,20 +46,20 @@ struct hostip_st
     struct in_addr gateway; 
     
 };
-struct heart_server
+struct heart_server_st
 {
     int interval; /* second */
     char url[256];
     
 };
-struct callcenter
+struct callcenter_st
 {
     struct in_addr ip;//net 
     unsigned short port;//host
     
 };
 
-struct tapeserver
+struct tapeserver_st
 {   
     unsigned short mainport;
     unsigned short spareport;
@@ -64,29 +67,255 @@ struct tapeserver
     struct in_addr spareip;
 };
 
-struct password
+struct password_st
 {
-    unsigned char passwod[32];
+    unsigned char password[32];
+};
+
+
+struct config_st
+{
+	struct hostip_st hostip;
+	struct heart_server_st heart_ser;
+	struct callcenter_st call;
+	struct tapeserver_st tape;
+	struct password_st pwd;
 };
 
 #define CONF_ "./base.config"
 
 char buf[65536];
 
-void read_file()
+void read_file(void)
 {
 	FILE *fp;
- 
+	char* p = buf;
     char ch;
 
-    if((fp=fopen(CONF_,"r"))==NULL) 
+    if((fp=fopen(CONF_,"r")) == NULL) 
     {
       printf("Cannot open file.\n");
       exit(1);
     }
 
-    while((ch=fgetc(fp)) != EOF) {
-     
+    while((ch=fgetc(fp)) != EOF) 
+    {
+    	if((ch != '\n')&& (p - buf) < 65535 )
+    	{
+    		*p=ch;
+    		p++;
+     	}
     }
+    *p = 0;
+    
+}
+int get_config_hostip(json_object* j_cfg,struct config_st* c )
+{	
+	char* str;
+	struct json_object *o;
+	enum json_type o_type;
+	int ret;
+	struct hostip_st* hostip = &c->hostip;
+	
+	json_object* j_ = json_object_object_get(j_cfg, "HOSTIP");
+	if(j_ ==NULL){
+		log("no HOSTIP");
+		return -1;
+	}
+
+
+	str = json_common_get_string(j_,"IP");
+	if(str != NULL)
+	{
+		ret = inet_pton(AF_INET, str, &hostip->ip);        
+		if(ret !=1)
+		{
+			log("GET hostip IP failed!");
+		}
+	}
+	str = json_common_get_string(j_,"NETMASK");
+	if(str != NULL)
+	{
+		ret = inet_pton(AF_INET, str, &hostip->netmask);        
+		if(ret !=1)
+		{
+			log("GET hostip NETMASK failed!");
+		}
+	}
+	str = json_common_get_string(j_,"GATEWAY");
+	if(str != NULL)
+	{
+		ret = inet_pton(AF_INET, str, &hostip->gateway);        
+		if(ret !=1)
+		{
+			log("GET hostip GATEWAY failed!");
+		}
+	}	
+	return 0;
 }
 
+int get_config_heart_ser(json_object* j_cfg,struct config_st* c )
+{	
+	char* str;
+	struct json_object *o;
+	enum json_type o_type;
+	int ret;
+	struct heart_server_st* heart = &c->heart_ser;
+	
+	json_object* j_ = json_object_object_get(j_cfg, "HEART");
+	if(j_ ==NULL){
+		log("no HEART");
+		return -1;
+	}
+	o = json_object_object_get(j_, "INTERVAL");
+	o_type = json_object_get_type(o);
+	if(json_type_int == o_type)
+	{
+		heart->interval = json_object_get_int(o);
+	}
+	
+
+	str = json_common_get_string(j_,"URL");
+	if(str != NULL)
+		strcpy(heart->url,str);
+	else
+		return -1;
+	
+	return 0;
+}
+
+int get_config_callcenter(json_object* j_cfg,struct config_st* c )
+{	
+	char* str;
+	struct json_object *o;
+	enum json_type o_type;
+	int ret;
+	struct callcenter_st* call = &c->call;
+	
+	json_object* j_ = json_object_object_get(j_cfg, "CALLCENTER");
+	if(j_ ==NULL){
+		log("no CALLCENTER");
+		return -1;
+	}
+	//str = json_common_get_string(j_,"PORT");
+	o = json_object_object_get(j_, "PORT");
+	o_type = json_object_get_type(o);
+	if(json_type_int == o_type)
+	{
+		call->port = json_object_get_int(o);
+	}
+	
+
+	str = json_common_get_string(j_,"IP");
+	if(str != NULL)
+	{
+		ret = inet_pton(AF_INET, str, &call->ip);        
+		if(ret !=1)
+		{
+			log("GET Call center ip failed!");
+		}
+	}
+	
+	return 0;
+}
+
+int get_config_pwd(json_object* j_cfg,struct config_st* c )
+{
+	
+	char* str;
+	json_object* j_pwd = json_object_object_get(j_cfg, "PASSWORD");
+	if(j_pwd ==NULL){
+		log("no PASSWORD");
+		return -1;
+	}
+	str = json_common_get_string(j_pwd,"PASSWORD");
+	memcpy(c->pwd.password,str,32);
+	return 0;
+}
+
+int get_config_tape(json_object* j_cfg,struct config_st* c )
+{	
+	char* str;
+	struct json_object *o;
+	enum json_type o_type;
+	
+	struct tapeserver_st* tape = &c->tape;
+	
+	json_object* j_ = json_object_object_get(j_cfg, "TAPESERVER");
+	if(j_ ==NULL){
+		log("no TAPESERVER");
+		return -1;
+	}
+	o = json_object_object_get(j_, "SPAREPORT");
+	o_type = json_object_get_type(o);
+	if(json_type_int == o_type)
+	{
+		tape->spareport = json_object_get_int(o);
+	}
+	
+	o = json_object_object_get(j_, "MAINPORT");
+	o_type = json_object_get_type(o);
+	if(json_type_int == o_type)
+	{
+		tape->mainport = json_object_get_int(o);
+	}
+	
+	str = json_common_get_string(j_,"MAINIP");
+	if(str != NULL)
+		inet_pton(AF_INET, str, &tape->mainip);    
+	
+	
+	str = json_common_get_string(j_,"SPAREIP");
+	if(str != NULL)
+		inet_pton(AF_INET, str, &tape->spareip);
+    
+	return 0;
+}
+
+
+
+int get_config(struct config_st* c)
+{
+	read_file();
+	json_object* j_cfg = convert_json_data(buf);
+	
+	if(j_cfg == NULL)
+	{
+		log("cfg to json failed!");
+		return -1;
+	}	
+	get_config_pwd(j_cfg,c);
+	get_config_tape(j_cfg,c);
+	get_config_callcenter(j_cfg,c);
+	get_config_heart_ser(j_cfg,c);
+	get_config_hostip(j_cfg,c);
+	json_object_put(j_cfg);
+	return 0;
+	
+}
+
+int show_config(struct config_st* c)
+{
+	log("hostip:");
+	log("IP %x",c->hostip.ip);
+	log("netmask %x",c->hostip.netmask);	
+	log("gateway %x",c->hostip.gateway);	
+	
+	log("heart server:");
+	log("URL %s",c->heart_ser.url);
+	log("intval %s",c->heart_ser.interval);
+	
+	log("callcenter server:");
+	log("ip %x",c->call.ip);
+	log("port %d",c->call.port);
+	
+	log("tape server:");
+	log("main ip %x",c->tape.mainip);
+	log("main port %d",c->tape.mainport);
+	log("SPARE IP  %x",c->tape.spareip);
+	log("SPARE PORT  %d",c->tape.spareport);	
+	
+	log("password :");
+	
+	log("pawd %s",c->pwd.password);
+}

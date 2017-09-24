@@ -42,6 +42,7 @@ static void external_add_json_obj(json_object *json_obj_out, char *object, char 
 	json_object *json_obj_tmp = json_object_new_string(string);
 	json_object_object_add(json_obj_out, object, json_obj_tmp);
 }
+
 json_object* add_obj_to_json(json_object *json_obj_out,char *k,char* v)
 {
 		
@@ -57,6 +58,8 @@ const char* convert_json_to_str(json_object *js_obj)
 	str = json_object_get_string(js_obj);
 	return str;
 }
+
+
 const char* g_str3="/* more difficult test case */ { \"glossary\": { \"title\": \"example glossary\", \"GlossDiv\": { \"title\": \"S\", \"GlossList\": [ { \"ID\": \"SGML\", \"SortAs\": \"SGML\", \"GlossTerm\": \"Standard Generalized Markup Language\", \"Acronym\": \"SGML\", \"Abbrev\": \"ISO 8879:1986\", \"GlossDef\": \"A meta-markup language, used to create markup languages such as DocBook.\", \"GlossSeeAlso\": [\"GML\", \"XML\", \"markup\"] } ] } } }";
 const char* g_str="{\"name\":\"main\",\"age\":\"13\"}";
 const char* g_str2="{\"street\":\"one street\",\"gateNo\":\"13\"}";

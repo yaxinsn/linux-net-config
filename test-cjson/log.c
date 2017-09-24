@@ -30,8 +30,7 @@
 
 #include "log.h"
 
-void 
-_logger_file(const char* file_name, const char* func, int line, const char* fmt,...)
+void _logger_file(const char* file_name, const char* func, int line, const char* fmt,...)
 {
     int fd;
     va_list args;
