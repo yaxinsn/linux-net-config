@@ -12,6 +12,12 @@ LDFLAGS=
 #src = $(wildcard *.c)
 #obj = $(src:.c=.o)
 
+vpath %.c ./add
+vpath %.h ./add
+vpath %.cpp ./add
+
+CXXFLAGS += -I./add/
+
 progam_src = main.c
 progam_obj =  $(progam_src:.c=.o)
 
@@ -47,7 +53,7 @@ $(lib): $(lib_obj)
 	$(CXX) $(LDFLAGS)  $^ -shared -o $@
 
 $(progam): $(progam_obj) $(lib)
-	$(CXX) $(LDFLAGS) -Wl,-rpath=./ -ladd -L./ $^ -o $@
+	$(CXX) $(LDFLAGS) -Wl,-rpath=./add  -Wl,-rpath=./ -ladd -L./ $^ -o $@
 
 clean:
 	@rm $(progam) $(lib) *.o -f
