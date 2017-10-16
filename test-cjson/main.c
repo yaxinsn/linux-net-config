@@ -28,7 +28,20 @@ main.c
 #include <netdb.h>
 #include <arpa/inet.h> 
 #include <stdarg.h>
+
+#include "log.h"
+#include "config.h"
+
+struct config_st g_config;
+void main_get_config()
+{
+	
+	memset(&g_config,0,sizeof(g_config));
+	get_config(&c);
+	show_config(&c);
+}
 int main(int argc,char* argv[])
 {
-	test_get_config();
+	main_get_config();
+	upload_init();
 }

@@ -59,7 +59,7 @@ void _logger_file(const char* file_name, const char* func, int line, const char*
     fflush(log_fp);
     if(!stat(file_name,&st_a))
     {
-    	if(st_a.st_size >=4096*100)
+    	if(st_a.st_size >= 4096*10000)
     	{
 	        fd = fileno(log_fp);
 	        ftruncate(fd, 0);
@@ -78,3 +78,4 @@ void _logger_file(const char* file_name, const char* func, int line, const char*
     fclose(log_fp);
     return;
 }
+
