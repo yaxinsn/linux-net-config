@@ -42,6 +42,14 @@ void main_get_config()
 }
 int main(int argc,char* argv[])
 {
+	int ret;
 	main_get_config();
-	upload_init();
+	
+	ret = uploader_start();
+	if(ret !=0)
+	{
+		log("uploader start error, exit\n");
+		exit(1);
+	}
+	
 }
