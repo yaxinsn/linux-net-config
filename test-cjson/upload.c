@@ -61,11 +61,6 @@ upload_frame_list_t  upload_ctx;
 
 
 
-int upload_init(void)
-{
-	
-}
-
 
 int wakeup_upload(void)
 {
@@ -80,9 +75,29 @@ int upload_send(void* content,int len)
 	wakeup_upload();
 
 }
-
 upload_pthread()
 {
 	
 }
+
+pthread_t upload_start()
+{
+	pthread_t tid;
+	if(pthread_create(&tid,NULL,upload_pthread,NULL))
+	{
+		log("create upload failed!\n");
+		return -1;
+	}
+	return pthread_t;
+}
+
+
+int upload_init(void)
+{
+	//read config;
+	//init upload_ctx
+	
+	upload_start();
+}
+
 
