@@ -70,7 +70,7 @@ struct msg_engine_ctx
 
 
 int msg_engine_push_entry(struct msg_engine_ctx* me,void* msg,int len);
-pthread_t msg_engine_start(struct msg_engine_ctx* me,char* name);
+pthread_t msg_engine_start(struct msg_engine_ctx* me,const char* name);
 
 #endif   //THREAD_MSG_ENGINE_H_
 

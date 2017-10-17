@@ -267,10 +267,11 @@ int upload_init(void)
 int uploader_start(void)
 {
 	pthread_t tid;
-
+	int ttid = 0;
 	upload_init();
 	tid = msg_engine_start(&upload_ctx.msg_eng,"upload");
-	if(tid == -1)
+	ttid = (int)tid;
+	if(ttid == -1)
 		return -1;
 	
 	return tid;

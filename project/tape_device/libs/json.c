@@ -16,7 +16,7 @@ main.c
 #include <stdlib.h>
 #include <string.h>
 
-const char *json_common_get_string(json_object *js_obj, char *key )
+const char *json_common_get_string(json_object *js_obj, const char *key )
 {
 	json_object *js_tmp = NULL;
 	const char *str = NULL;
@@ -59,7 +59,7 @@ const char* convert_json_to_str(json_object *js_obj)
 	return str;
 }
 
-
+#if 0
 const char* g_str3="/* more difficult test case */ { \"glossary\": { \"title\": \"example glossary\", \"GlossDiv\": { \"title\": \"S\", \"GlossList\": [ { \"ID\": \"SGML\", \"SortAs\": \"SGML\", \"GlossTerm\": \"Standard Generalized Markup Language\", \"Acronym\": \"SGML\", \"Abbrev\": \"ISO 8879:1986\", \"GlossDef\": \"A meta-markup language, used to create markup languages such as DocBook.\", \"GlossSeeAlso\": [\"GML\", \"XML\", \"markup\"] } ] } } }";
 const char* g_str="{\"name\":\"main\",\"age\":\"13\"}";
 const char* g_str2="{\"street\":\"one street\",\"gateNo\":\"13\"}";
@@ -125,3 +125,5 @@ json_object_put(obj3);
 	return 0;
 		
 }
+
+#endif

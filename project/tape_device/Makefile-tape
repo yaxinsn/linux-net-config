@@ -13,19 +13,16 @@ lib_obj =  $(lib_src:.c=.o)
 
 all_src = $(progam_src) $(lib_src)
 CFLAGS += -Wall -Werror -Wno-unused-result -Wno-discarded-qualifiers
-CFLAGS +=  -Wno-deprecated-declarations -Wextra -Wwrite-strings -Wno-unused-parameter 
-CFLAGS += -g -O2
-#CFLAGS += -Werror=parentheses
-#-std=gnu99 -D_GNU_SOURCE -D_REEN^CANT -g -O2
+#CFLAGS +=  -Wno-deprecated-declarations -Wextra -Wwrite-strings -Wno-unused-parameter -std=gnu99 -D_GNU_SOURCE -D_REEN^CANT -g -O2
 CFLAGS +=-I$(TARGET_DIR)/usr/include  -I./
 CFLAGS += -I./ -I./libs/ 
 
-LDFLAGS = -L$(TARGET_DIR)/usr/lib/ -ljson-c -lpcap -lpthread
+LDFLAGS = -L$(TARGET_DIR)/usr/lib/ -ljson-c
 vpath %.c ./libs
 vpath %.h ./libs
 
 all: main
-LIB=$(TARGET_DIR)/usr/lib/libjson-c.so
+LIB=./json-c/.libs/libjson-c.so
 
 
 $(all_src:.c=.o): %.o : %.c

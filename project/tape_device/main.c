@@ -53,5 +53,5 @@ int main(int argc,char* argv[])
 		log("uploader start error, exit\n");
 		exit(1);
 	}
-	
+	return 0;
 }

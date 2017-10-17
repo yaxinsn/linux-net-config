@@ -45,7 +45,7 @@ void* msg_engine_loop(void* arg)
 	}
 }
 
-pthread_t msg_engine_start(struct msg_engine_ctx* me,char* name)
+pthread_t msg_engine_start(struct msg_engine_ctx* me,const char* name)
 {
 	pthread_t tid;
 	msg_engine_init(me);

@@ -48,7 +48,7 @@ void read_file(void)
 {
 	FILE *fp;
 	char* p = buf;
-    char ch;
+    int ch;
 
     if((fp=fopen(CONF_,"r")) == NULL) 
     {
@@ -56,7 +56,7 @@ void read_file(void)
       exit(1);
     }
 
-    while((ch=fgetc(fp)) != EOF) 
+    while( !(EOF == (ch=fgetc(fp)))) 
     {
     	if((ch != '\n')&& (p - buf) < 65535 )
     	{
@@ -69,9 +69,9 @@ void read_file(void)
 }
 int get_config_hostip(json_object* j_cfg,struct config_st* c )
 {	
-	char* str;
-	struct json_object *o;
-	enum json_type o_type;
+	const char* str = NULL;
+	//struct json_object *o;
+	//enum json_type o_type;
 	int ret;
 	struct hostip_st* hostip = &c->hostip;
 	
@@ -82,7 +82,7 @@ int get_config_hostip(json_object* j_cfg,struct config_st* c )
 	}
 
 
-	str = json_common_get_string(j_,"IP");
+	str = json_common_get_string(j_, "IP");
 	if(str != NULL)
 	{
 		ret = inet_pton(AF_INET, str, &hostip->ip);        
@@ -114,10 +114,10 @@ int get_config_hostip(json_object* j_cfg,struct config_st* c )
 
 int get_config_heart_ser(json_object* j_cfg,struct config_st* c )
 {	
-	char* str;
+	const char* str;
 	struct json_object *o;
 	enum json_type o_type;
-	int ret;
+	//int ret;
 	struct heart_server_st* heart = &c->heart_ser;
 	
 	json_object* j_ = json_object_object_get(j_cfg, "HEART");
@@ -152,7 +152,7 @@ int get_config_heart_ser(json_object* j_cfg,struct config_st* c )
 
 int get_config_callcenter(json_object* j_cfg,struct config_st* c )
 {	
-	char* str;
+	const char* str;
 	struct json_object *o;
 	enum json_type o_type;
 	int ret;
@@ -192,7 +192,7 @@ int get_config_callcenter(json_object* j_cfg,struct config_st* c )
 int get_config_pwd(json_object* j_cfg,struct config_st* c )
 {
 	
-	char* str;
+	const char* str;
 	json_object* j_pwd = json_object_object_get(j_cfg, "PASSWORD");
 	if(j_pwd ==NULL){
 		log("no PASSWORD");
@@ -207,7 +207,7 @@ int get_config_pwd(json_object* j_cfg,struct config_st* c )
 
 int get_config_tape(json_object* j_cfg,struct config_st* c )
 {	
-	char* str;
+	const char* str;
 	struct json_object *o;
 	enum json_type o_type;
 	
@@ -299,5 +299,6 @@ int show_config(struct config_st* c)
 	
 	log("pawd %s",c->pwd.password);
 	log("\n");
+	return 0;
 }
 

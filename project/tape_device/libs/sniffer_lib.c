@@ -114,7 +114,7 @@ void sniff_handle(u_char * user, const struct pcap_pkthdr * packet_header, const
 int sniff_loop_test( pcap_t *p)
 {
 	//打开用于捕获数据包的文件
-	char* fname = "./icmp.pcap";
+	 const char* fname = "./icmp.pcap";
 	 pcap_dumper_t *pd_t;  //打开用于保存捕获数据包的文件， 函数返回值
 	 
 	
