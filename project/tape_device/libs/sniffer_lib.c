@@ -7,6 +7,7 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include "log.h"
+#include "sniffer_lib.h"
 #define CAP_LEN 1024
 
 void handle(u_char * user, const struct pcap_pkthdr * h, const u_char * p) ;
@@ -52,7 +53,7 @@ snaplen ：捕获数据包的长度。
 promise : 1表示是混杂模式，其它非混杂模式
 to_ms   ：此句柄的等待时间。
 */
-pcap_t* open_pcap_file(char* device,int snaplen,int promise,int to_ms)
+pcap_t* open_pcap_file(const char* device,int snaplen,int promise,int to_ms)
 {
 	char ebuf[1024];
 	pcap_t *pd = NULL;    //存放数据包捕获描述字
@@ -103,7 +104,7 @@ int sniffer_setfilter(pcap_t * pd,const char* bpf_str)
     //数据包捕获
     return 0;
 }
-
+#if 0
 
 void sniff_handle(u_char * user, const struct pcap_pkthdr * packet_header, const u_char * packet_content)
 {
@@ -130,3 +131,5 @@ int sniff_loop_test( pcap_t *p)
 	 pcap_dump_close(pd_t);	 
 	 return 0;
 }
+
+#endif

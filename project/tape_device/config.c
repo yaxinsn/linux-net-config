@@ -40,7 +40,7 @@ config
            };
 */
 
-#define CONF_ "./base.config"
+#define CONF_ "/home/root/rundir/etc/base.config"
 
 char buf[65536];
 
@@ -199,7 +199,8 @@ int get_config_pwd(json_object* j_cfg,struct config_st* c )
 		return -1;
 	}
 	str = json_common_get_string(j_pwd,"PASSWORD");
-	memcpy(c->pwd.password,str,32);
+	if(str)
+		memcpy(c->pwd.password,str,32);
 	return 0;
 }
 
