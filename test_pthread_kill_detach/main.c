@@ -36,6 +36,7 @@ pthread_t __sniffer_rtp_start(void)
 {
 	pthread_t tid;
 	
+	
 	if(pthread_create(&tid,NULL,sniffer_rtp_loop,NULL))
 	{
 		printf("create pthread_create sniffer_rtp_loop failed\n");
@@ -58,10 +59,17 @@ int thread_kill(pthread_t thread_id)
 	
 	return 0;
 }
+void sighandler_sip(int s)
+{
+	int retval = 9;
+	printf("sighandler_sip %d  \n",pthread_self());
+	pthread_exit(&retval);
+}
 void* sniffer_sip_loop(void* arg)
 {
 	int i = 0;
 	pthread_t tid;
+	signal(SIGQUIT, sighandler_sip); //这个注册的signal，被后面的注册的signal函数给覆盖掉了。也就是说signal还是注册到了进程上。pthread_kill()只是选择由哪一个线程来处理。
 	while(1)
 	{
 		printf("I am rtp sip i %d\n",i);
@@ -74,6 +82,10 @@ void* sniffer_sip_loop(void* arg)
 		if(i ==6){
 			printf("I will kill the tid %d \n",tid);
 			thread_kill(tid);
+		}
+		if(i ==7){
+			printf("I will kill myself \n",tid);
+			thread_kill(pthread_self());
 		}
 	}
 }
@@ -95,8 +107,12 @@ pthread_t __sniffer_sip_start(void)
 int main()
 {
 	pthread_t tid;
+	int ret;
+	int* ret1;
 	tid = __sniffer_sip_start();
-	pthread_join(tid,NULL);
-	printf("end \n");
+	
+			printf("sip %d \n",tid);
+	ret = pthread_join(tid,&ret1);
+	printf("end  ret from sip pthread %d \n",*ret1);
 	
 }
