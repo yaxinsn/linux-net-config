@@ -45,8 +45,8 @@ struct talking_mesg
 };
 
 
-int uploader_start(void);
-int uploader_push_msg(void* msg,int len);
+pthread_t uploader_start(void);
+int uploader_push_msg(struct phone_msg*  msg,int len);
 
 
 #endif

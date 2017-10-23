@@ -50,9 +50,9 @@ int main(int argc,char* argv[])
 	main_get_config();
 	printf("get config and upload \n");
 	
-#if 0	
-	ret = uploader_start();
-	if(ret !=0)
+#if 1	
+	uploader = uploader_start();
+	if(uploader == 0)
 	{
 		log("uploader start error, exit\n");
 		exit(1);
@@ -68,6 +68,7 @@ int main(int argc,char* argv[])
 	
     printf("%s:%d \n",__func__,__LINE__);
 	pthread_join(sniffer,NULL);
+	pthread_join(uploader,NULL);
     printf("%s:%d \n",__func__,__LINE__);
 	return 0;
 }

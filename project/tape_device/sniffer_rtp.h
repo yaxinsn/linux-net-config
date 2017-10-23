@@ -17,9 +17,6 @@
 
 #include "sniffer_lib.h"  
 
-#include <linux/if_ether.h> //struct ethhdr
-//#include <linux/ip.h> //struct iphdr
-#include <linux/udp.h>//struct udphdr
 //#include <linux/in.h>
 #include "config.h"
 #include "linux-utils.h"

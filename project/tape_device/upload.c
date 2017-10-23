@@ -80,7 +80,7 @@ static int connect_tcp_socket(struct in_addr * server,int serverPort)
     struct timeval exp = {0};
 
     sk = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
-    log("socket = %d", sk);
+    log("socket = %d\n", sk);
     assert(sk>0);
 
     setnonblocking(sk); 
@@ -90,13 +90,13 @@ static int connect_tcp_socket(struct in_addr * server,int serverPort)
     sin.sin_port   = htons(serverPort); 
     sin.sin_addr.s_addr = server->s_addr;
 	
-	log("Connecting... port=%d, ip=%s", ntohs(sin.sin_port), inet_ntoa(sin.sin_addr));
+	log("Connecting... port=%d, ip=%s\n", ntohs(sin.sin_port), inet_ntoa(sin.sin_addr));
 	
 	ret = connect(sk, (struct sockaddr*)&sin, sizeof(sin));
     if( 0 != ret ){
         if( EINPROGRESS != errno ){
-            log("connect %d errno %d/%s", ret, errno, strerror(errno));
-            log("Prog exit....%d",ret);
+            log("connect %d errno %d/%s\n", ret, errno, strerror(errno));
+            log("Prog exit....%d\n",ret);
             return ret;
         }
 
@@ -109,8 +109,8 @@ static int connect_tcp_socket(struct in_addr * server,int serverPort)
 
         ret = select(sk+1, &rds, &wrs, NULL, &exp);
         if( ret <= 0 ){
-            PERROR("nonblocking SYN+ACK timeout");
-            PERROR("Prog exit....%d", ret);
+            PERROR("nonblocking SYN+ACK timeout\n");
+            PERROR("Prog exit....%d\n", ret);
             return ret;
         }
 
@@ -119,15 +119,15 @@ static int connect_tcp_socket(struct in_addr * server,int serverPort)
 
         ret = getsockopt(sk, SOL_SOCKET, SO_ERROR, (void*)&error, &sl);
         if( 0>ret ){
-            log("nonblocking state check failed.");
-            log("Prog exit....%d", ret);
+            log("nonblocking state check failed.\n");
+            log("Prog exit....%d\n", ret);
 			close(sk);
             return ret;
         }
 
         if( 0 != error ){
-            log("nonblocking connect failed, error = %d/%s", error, strerror(error));
-            log("Prog exit....");
+            log("nonblocking connect failed, error = %d/%s\n", error, strerror(error));
+            log("Prog exit....\n");
 			close(sk);
             return error;
         }      
@@ -264,21 +264,22 @@ int upload_init(void)
 }
 
 
-int uploader_start(void)
+pthread_t uploader_start(void)
 {
 	pthread_t tid;
-	int ttid = 0;
+	unsigned long ttid = 0;
 	upload_init();
 	tid = msg_engine_start(&upload_ctx.msg_eng,"upload");
-	ttid = (int)tid;
-	if(ttid == -1)
-		return -1;
+	ttid = (long)tid;
+	log("tid %ul, ttid %ul \n",tid,ttid);
+	if(ttid == 0)
+		return 0;
 	
 	return tid;
 
 }
 
-int uploader_push_msg(void* msg,int len)
+int uploader_push_msg(struct phone_msg* msg,int len)
 {
 
 	return msg_engine_push_entry(&upload_ctx.msg_eng,msg,len);

@@ -8,6 +8,7 @@
 #include <arpa/inet.h>
 #include "log.h"
 #include "sniffer_lib.h"
+
 #define CAP_LEN 1024
 
 void handle(u_char * user, const struct pcap_pkthdr * h, const u_char * p) ;
@@ -133,3 +134,76 @@ int sniff_loop_test( pcap_t *p)
 }
 
 #endif
+
+
+int check_iphdr( const struct pcap_pkthdr * phdr, const u_char * pkt,
+    struct iphdr** iphdr_p )
+{
+
+	const struct ethhdr* ethh = NULL;
+	const struct iphdr* iph;
+	const u8*   data = pkt;
+	const u16* vlan_proto = 0;
+	if (phdr->len != phdr->caplen)
+	{
+		log(" phdr->len %d != phdr->caplen %d \n",phdr->len,phdr->caplen);
+		return -1;
+	}
+	ethh =(struct ethhdr*) data;
+	if(ethh->h_proto != htons(ETH_P_IP))
+	{
+		if(ethh->h_proto != htons(ETH_P_8021Q))
+		{
+			vlan_proto = &ethh->h_proto;
+			vlan_proto += 2;// shift 4 byte;
+			if(*vlan_proto != htons(ETH_P_IP)){
+				log("pkt is  vlan pkt,but not a vlanip pkt; vlan_proto %x \n",htons(*vlan_proto));
+				return -1;
+			}
+			else
+				iph = (struct iphdr*)vlan_proto+1;
+		}
+		else
+		{
+			log("pkt is not ip or vlan pkt; ethh->h_proto %x \n",htons(ethh->h_proto));
+			return -1;
+		}
+	}
+	else
+	{
+		iph = (struct iphdr*)(ethh+1);
+	}
+	/* ip hdr is corrent */
+	if(iph->ihl <5 || iph->version != 4){
+	
+		log("ip header error\n");
+		goto inhdr_error;
+	}
+	if(iph->ihl*4 >  phdr->caplen -((u8*)iph - data)){
+		log("ip header len is beyond the caplen!\n");
+		goto inhdr_error;
+	}
+	if(ntohs(iph->tot_len) > phdr->caplen -((u8*)iph - data))
+	{
+		log(" ip tot len is beyond the caplen! \n");
+		goto inhdr_error;
+	}
+	*iphdr_p = iph;
+	
+	return 0;
+inhdr_error:
+	
+	return -2;
+}
+
+int check_udp( struct iphdr* iph,struct udphdr** udph_p)
+{
+	struct udphdr* udph;
+	if(iph->protocol == IPPROTO_UDP)
+	{
+		udph = (struct udphdr*)((u8*)iph + iph->ihl*4);
+		*udph_p = udph;
+		return 0;
+	}
+	return -1;
+}
