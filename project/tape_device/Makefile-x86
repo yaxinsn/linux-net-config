@@ -4,9 +4,9 @@
 CC=gcc
 
 
-progam_src =   main.c  sniffer_sip.c  upload.c config.c
+progam_src =   main.c  sniffer_sip.c  upload.c config.c sniffer_rtp.c
 progam_obj =  $(progam_src:.c=.o)
-lib_src =  linux-utils.c  log.c  sniffer_lib.c  thread_msg_engine.c  wake_utils.c json.c
+lib_src =  linux-utils.c  log.c  sniffer_lib.c  thread_msg_engine.c  wake_utils.c json.c str_lib.c
 lib_obj =  $(lib_src:.c=.o)
 
 all_src = $(progam_src) $(lib_src)

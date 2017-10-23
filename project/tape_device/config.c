@@ -277,29 +277,29 @@ int get_config(struct config_st* c)
 
 int show_config(struct config_st* c)
 {
-	log("hostip:");
-	log("IP %x",c->hostip.ip);
-	log("netmask %x",c->hostip.netmask);	
-	log("gateway %x",c->hostip.gateway);	
+	log("hostip:\n");
+	log("IP %x\n",c->hostip.ip);
+	log("netmask %x\n",c->hostip.netmask);	
+	log("gateway %x\n",c->hostip.gateway);	
 	
-	log("heart server:");
-	log("URL %s",c->heart_ser.url);
-	log("intval %d",c->heart_ser.interval);
+	log("heart server:\n");
+	log("URL %s\n",c->heart_ser.url);
+	log("intval %d\n",c->heart_ser.interval);
 	
-	log("callcenter server:");
-	log("ip %x",c->call.ip);
-	log("port %d",c->call.port);
+	log("callcenter server:\n");
+	log("ip %x\n",c->call.ip);
+	log("port %d\n",c->call.port);
 	
-	log("tape server:");
-	log("main ip %x",c->tape.mainip);
-	log("main port %d",c->tape.mainport);
-	log("SPARE IP  %x",c->tape.spareip);
-	log("SPARE PORT  %d",c->tape.spareport);	
+	log("tape server:\n");
+	log("main ip %x\n",c->tape.mainip);
+	log("main port %d\n",c->tape.mainport);
+	log("SPARE IP  %x\n",c->tape.spareip);
+	log("SPARE PORT  %d\n",c->tape.spareport);	
 	
-	log("password :");
+	log("password :\n");
 	
-	log("pawd %s",c->pwd.password);
-	log("\n");
+	log("pawd %s\n",c->pwd.password);
+	log("\n\n");
 	return 0;
 }
 
