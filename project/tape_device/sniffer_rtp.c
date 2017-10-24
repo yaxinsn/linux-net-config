@@ -23,7 +23,67 @@
 #include "sniffer_rtp.h"
 #include "upload.h"
 
+struct rtp_session_info
+{
+    
+    struct list_head node;
+    pthread_t   thread_id;
+    pcap_t*     pd;
+};
 
+
+struct rtp_ctx_t
+{
+    pthread_mutex_t head_lock;  //sync
+    
+    struct list_head rtp_head;
+
+};
+struct rtp_ctx_t rtp_ctx;
+
+
+struct rtp_session_info* _rtp_new_session()
+{
+    struct rtp_session_info* rs =NULL;
+    rs = (struct session_info*)malloc(sizeof(struct rtp_session_info));
+    if ( rs == NULL)
+        return NULL;
+        
+    pthread_mutex_lock(&rtp_ctx.head_lock);
+    list_add(&rs->node,&rtp_ctx.rtp_head);
+    pthread_mutex_unlock(&rtp_ctx.head_lock);
+    return rs;
+}
+void _rtp_del_session(struct rtp_session_info* si)
+{
+   
+    pthread_mutex_lock(&rtp_ctx.head_lock);
+
+    list_del(&si->node);
+    
+    pthread_mutex_unlock(&rtp_ctx.head_lock);
+    FREE(si);
+    return;
+}
+struct rtp_session_info* _rtp_find_session(pthread_t   thread_id)
+{
+    struct rtp_session_info* p;
+    struct rtp_session_info* n;
+    struct list_head* rtp_head;
+    rtp_head = &rtp_ctx.rtp_head;
+    
+    list_for_each_entry_safe(p,n,rtp_head,node)
+    {
+
+        if(thread_id == p->thread_id)
+        {
+            return p;
+        }
+    }
+    return NULL;
+}
+
+/****************************/
 static void session_up()
 {
     char buf[256] = {0};
@@ -94,8 +154,16 @@ static void session_talking(struct iphdr* iph,struct udphdr* udph)
 static void sighandler(int s)
 {
         int retval = 3;
+        struct rtp_session_info* n;
+        n = _rtp_find_session(pthread_self());
+        if(n)
+        {
+            pcap_close(n->pd);
+            _rtp_del_session(n);
+        }    
         log(" %ul thread quit \n", (unsigned long)pthread_self());
         pthread_exit(&retval);
+        
 }
 
 int thread_kill(pthread_t thread_id)
@@ -182,9 +250,8 @@ static pcap_t* init_sniffer_rtp(struct session_info* ss)
 	pd = open_pcap_file("eth0",65535,1,0);
 	if(pd == NULL)
 	{
-
 		log("open_pcap_file failed ! \n");
-		exit(1);
+		return NULL;
 	}
 #if 1
 	
@@ -201,12 +268,24 @@ pthread_t setup_rtp_sniffer(struct session_info* ss)
 {
 	pthread_t tid;
 	pcap_t* pd;
+	struct rtp_session_info* rs;
 	log("sniffer rtp info: \n");
 	
 	log("sniffer calling %s:%d \n",inet_ntoa(ss->calling.ip),ss->calling.port);
 	log("sniffer called  %s:%d \n",inet_ntoa(ss->called.ip),ss->called.port);
 
     pd =  init_sniffer_rtp(ss);
+    if(pd == NULL)
+    {
+        return 0;//bad
+    }
+    rs = _rtp_new_session();
+    if(rs == NULL)
+    {
+        log_err("rtp_new_session failed\n");
+        
+    }
+    
 	session_up();
 	
 	if(pthread_create(&tid,NULL,sniffer_rtp_loop1,pd))
@@ -214,10 +293,19 @@ pthread_t setup_rtp_sniffer(struct session_info* ss)
 		log("create msg_engine_start sniffer_sip_loop failed\n");
 		return -1;
 	}
+	if(rs){
+	    rs->pd = pd;
+	    rs->thread_id = tid;
+	}
     pthread_detach(tid);
 
 	return tid;
 
-
 }
 
+void rtp_sniffer_init(void)
+{
+
+    INIT_LIST_HEAD(&rtp_ctx.rtp_head);
+
+}

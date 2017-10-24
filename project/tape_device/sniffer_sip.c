@@ -30,10 +30,12 @@
 #include "wake_utils.h"
 #include "sniffer_sip.h"
 #include "str_lib.h"
+#include "upload.h"
 
 #include "sniffer_rtp.h"
 
 extern struct config_st g_config;
+
 
 
 struct sip_ctx_t
@@ -526,7 +528,46 @@ int check_sip( struct udphdr* udph)
 	return 0;
 	
 }
+/*
+把SIP报文也发给upload.
+*/
+static void send_sip_pkt(struct iphdr* iph,struct udphdr* udph)
+{
+    char buf[2000] = {0};
 
+    u8* rtp_pkt = (u8*)(udph+1);
+    int rtp_len = ntohs(udph->len);
+    
+    struct phone_msg* msg;
+    
+    struct talking_mesg* tm;
+    int len;
+    int ret;
+    msg = ( struct phone_msg*)buf;
+    msg->event = SIP_PKT;
+    len = sizeof(struct phone_msg);
+
+    len = rtp_len + sizeof(struct phone_msg) +sizeof( struct talking_mesg);
+    if(len > sizeof(buf))
+        log_err("total len %d > 2000 \n",len);
+
+    
+    tm = (struct talking_mesg*)msg->data;
+
+    tm->phone_sender_ip = iph->saddr; /* 本来就是网络序 */
+    tm->phone_sender_port = udph->source;
+    tm->phone_rcv_ip = iph->daddr;
+    tm->phone_rcv_port = udph->dest;
+    tm->lenth = rtp_len;
+    
+    memcpy(tm->data,rtp_pkt,rtp_len);
+    
+    
+    ret = uploader_push_msg(msg, len);
+    if(ret != 0)
+        log_err("uploader_push_msg (SIP_PKT) failed,ret %d \n",ret);
+    
+}
 
 /***********************************************************************************/
 static void sniffer_handle_sip(u_char * user, const struct pcap_pkthdr * packet_header, const u_char * packet_content)
@@ -537,16 +578,14 @@ static void sniffer_handle_sip(u_char * user, const struct pcap_pkthdr * packet_
 	struct iphdr* iph = NULL;
 	struct udphdr* udph = NULL;
 	
-    //printf("[%s:%d]I get one packet! \n" ,__func__,__LINE__);
 	ret = check_iphdr(phdr,packet_content,&iph);
 	if(ret != 0)
 		goto error;
 	
-    //printf("[%s:%d]I get one packet! \n" ,__func__,__LINE__);
 	if(0 != check_udp(iph,&udph))	
 		goto error;
 	
-	
+	    send_sip_pkt(iph,udph);
 		check_sip(udph);
 	
 error:

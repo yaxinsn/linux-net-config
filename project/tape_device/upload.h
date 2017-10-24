@@ -19,6 +19,7 @@ enum PHONE_EVENT{
 	RING_UP = 1, /* 打电话 */
 	TALKING, /* 通话 */
 	RING_DOWN, /* 挂电话 */
+	SIP_PKT
 };
 
 struct phone_msg 

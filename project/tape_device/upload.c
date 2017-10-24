@@ -190,7 +190,7 @@ static void upload_close_socket()
 static void upload_open_socket()
 {
 	extern struct config_st g_config;
-	upload_close_socket();
+	//upload_close_socket();
   	upload_ctx.main_fd = connect_tcp_socket(&g_config.tape.mainip,g_config.tape.mainport);
   	upload_ctx.bak_fd = connect_tcp_socket(&g_config.tape.spareip,g_config.tape.spareport);
 
@@ -208,7 +208,7 @@ static int _ring_down_send_finish()
 static int _ring_down_()
 {
 	_ring_down_send_finish();
-	upload_close_socket();
+	//upload_close_socket();
 	return 0;
 }
 
@@ -224,7 +224,7 @@ static int _ring_up_send_request()
 static int _ring_up_()
 {
 	
-	upload_open_socket();
+	//upload_open_socket();
 	//send a request 
 	_ring_up_send_request();
 	return 0;
@@ -238,9 +238,11 @@ static int __upload_msg_handle(void* msg,int len,struct msg_engine_ctx* me)
 		case RING_UP:
 			log("RING UP \n\n");
 			_ring_up_();
-			
 			break;
 			
+		case SIP_PKT:
+			__send_talking(msg,len);
+			break;
 		case TALKING:
 			__send_talking(msg,len);
 			break;

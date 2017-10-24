@@ -28,6 +28,7 @@ pthread_t setup_rtp_sniffer(struct session_info* ss);
 
 void close_rtp_sniffer(struct session_info* ss);
 
+void rtp_sniffer_init(void);
 
 #endif //SNIFFER_RTP_H_
 

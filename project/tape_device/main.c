@@ -49,7 +49,7 @@ int main(int argc,char* argv[])
 	pthread_t sniffer;
 	main_get_config();
 	printf("get config and upload \n");
-	
+	rtp_sniffer_init();
 #if 1	
 	uploader = uploader_start();
 	if(uploader == 0)
