@@ -84,6 +84,7 @@ struct rtp_session_info* _rtp_find_session(pthread_t   thread_id)
 }
 
 /****************************/
+//这个函数也应该没作用了。
 static void session_up()
 {
     char buf[256] = {0};
@@ -98,6 +99,7 @@ static void session_up()
         log_err("uploader_push_msg failed,ret %d \n",ret);
     
 }
+/* 向upload发一个ring down的报文。应该是没什么作用了。 */
 static void session_down()
 {
     char buf[256] = {0};
@@ -188,7 +190,7 @@ int thread_kill(pthread_t thread_id)
 void close_rtp_sniffer(struct session_info* ss)
 {
 
-    session_down();
+    //session_down();
     if(ss->rtp_sniffer_tid)
     {
     
@@ -297,7 +299,7 @@ pthread_t setup_rtp_sniffer(struct session_info* ss)
 	    rs->pd = pd;
 	    rs->thread_id = tid;
 	}
-    pthread_detach(tid);
+    pthread_detach(tid);//线程与sip线程分离。
 
 	return tid;
 

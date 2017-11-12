@@ -89,7 +89,7 @@ struct session_info* _si_find_session(char* call_id)
     }
     return NULL;
 }
-
+/**************************session lib end ****************************/
 /*
 sniffer_handle_sip 一个包一个包地进行处理。
 每抓一个包被调用一次。
@@ -525,10 +525,13 @@ int check_sip( struct udphdr* udph)
 
 	sync_session(spkt_p);
 	__free_sip_pkt(spkt_p);
+	free(sip);//add it ,2017.11.12 --需要再仔细检查它。
 	return 0;
 	
 }
 /*
+send_sip_pkt:
+
 把SIP报文也发给upload.
 */
 static void send_sip_pkt(struct iphdr* iph,struct udphdr* udph)
@@ -569,7 +572,9 @@ static void send_sip_pkt(struct iphdr* iph,struct udphdr* udph)
     
 }
 
-/***********************************************************************************/
+/***************************************
+处理被抓到的SIP报文。
+****************************************/
 static void sniffer_handle_sip(u_char * user, const struct pcap_pkthdr * packet_header, const u_char * packet_content)
 {
     int ret = 0;
@@ -585,8 +590,8 @@ static void sniffer_handle_sip(u_char * user, const struct pcap_pkthdr * packet_
 	if(0 != check_udp(iph,&udph))	
 		goto error;
 	
-	    send_sip_pkt(iph,udph);
-		check_sip(udph);
+    send_sip_pkt(iph,udph);/* 把sip报文转给upload一份。 */
+	check_sip(udph);
 	
 error:
 	return;
@@ -600,13 +605,17 @@ error:
 */
 int sniffer_loop_sip( pcap_t *p)
 {
-
-	
-
 	 pcap_loop( p,-1,sniffer_handle_sip,(u_char*)NULL);
 	 return 0;
 }
+/***********************************************
+线程启动与执行体
+************************************************/
+/*
+sniffer_sip_loop:
+打开pcap_file,进入抓包执行体。
 
+*/
 void* sniffer_sip_loop(void* arg)
 {
 
@@ -622,13 +631,10 @@ void* sniffer_sip_loop(void* arg)
 		log("open_pcap_file failed ! \n");
 		exit(1);
 	}
-	#if 1
+
 	sprintf(filter,"udp and host %s and port %d ",
 	inet_ntoa(g_config.call.ip),
 	g_config.call.port);
-	#else
-	sprintf(filter,"icmp");
-	#endif
 	sniffer_setfilter(pd,filter);
 	
 #endif

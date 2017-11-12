@@ -33,6 +33,7 @@ main.c
 #include "config.h"
 #include "upload.h"
 #include "sniffer_sip.h"
+#include "sniffer_rtp.h"
 //#include "thread_msg_engine.h"
 
 struct config_st g_config;

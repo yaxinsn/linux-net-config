@@ -1,11 +1,11 @@
 /**********************************************
 
-维护好与服务器的联系。
-对外提供一个upload函数。
-把用户希望的数据上报到服务器。
+???????????
+??????upload???
+???????????????
 
-upload也会是一个线程。
-他生成一个skb的队列。
+upload????????
+?????skb????
 
 **********************************************/
 
@@ -59,7 +59,7 @@ typedef struct upload_ctx_st
 	struct msg_engine_ctx msg_eng;
 	int main_fd; /*main server fd */
 	int bak_fd; /* back server fd */
-	int warn_event;// 1  main server发送失败。 2 back server 发送失败。
+	int warn_event;// 1  main server????? 2 back server ?????
 }upload_ctx_t;
 
 
@@ -80,6 +80,8 @@ static int connect_tcp_socket(struct in_addr * server,int serverPort)
     struct timeval exp = {0};
 
     sk = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+
+    //sk = socket(AF_INET, SOCK_DGRAM, 0);
     log("socket = %d\n", sk);
     assert(sk>0);
 
@@ -104,13 +106,13 @@ static int connect_tcp_socket(struct in_addr * server,int serverPort)
         FD_ZERO(&wrs);
         FD_SET(sk, &rds);
         FD_SET(sk, &wrs);        
-        exp.tv_sec = 75;/* 等待 connect过程 x s */
+        exp.tv_sec = 75;/* ?? connect?? x s */
 		
 
         ret = select(sk+1, &rds, &wrs, NULL, &exp);
         if( ret <= 0 ){
             PERROR("nonblocking SYN+ACK timeout\n");
-            PERROR("Prog exit....%d\n", ret);
+            //PERROR("Prog exit....%d\n", ret);
             return ret;
         }
 
@@ -120,15 +122,15 @@ static int connect_tcp_socket(struct in_addr * server,int serverPort)
         ret = getsockopt(sk, SOL_SOCKET, SO_ERROR, (void*)&error, &sl);
         if( 0>ret ){
             log("nonblocking state check failed.\n");
-            log("Prog exit....%d\n", ret);
+            //log("Prog exit....%d\n", ret);
 			close(sk);
             return ret;
         }
 
         if( 0 != error ){
             log("nonblocking connect failed, error = %d/%s\n", error, strerror(error));
-            log("Prog exit....\n");
-			close(sk);
+            //log("Prog exit....\n");
+            close(sk);
             return error;
         }      
     }
@@ -238,10 +240,9 @@ static int __upload_msg_handle(void* msg,int len,struct msg_engine_ctx* me)
 		case RING_UP:
 			log("RING UP \n\n");
 			_ring_up_();
-			break;
-			
+			break;			
 		case SIP_PKT:
-			__send_talking(msg,len);
+			__send_talking(msg,len);//TODO ????????????SIP???
 			break;
 		case TALKING:
 			__send_talking(msg,len);
