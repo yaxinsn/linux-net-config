@@ -210,7 +210,7 @@ int parse_sdp_media_dest(char* p,struct sip_pkt* sp)
 }
 int parse_msg_body(struct sip_pkt* sp)
 {
-    //主要是处理 SDP.
+    //SIP body, 也许可以包含各种协议数据，SDP是其中一种，我们主要是解析SDP.
     //find "m="
     char* b = sp->sip_msg_body;
     const char* key="m=";
@@ -279,7 +279,7 @@ int parse_msg_header(char* mh,struct sip_pkt* sp)
     {
 	    if(!strncmp(v,"application/sdp",len))
         {
-            sp->body_sdp = 1;
+            sp->body_sdp = 1; //this pkt is SDP, I will parse this msgbody.and this body is SDP 
             log("body have sdp  \n");
         }
     }
