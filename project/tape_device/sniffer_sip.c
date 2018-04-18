@@ -379,6 +379,10 @@ void _create_session(struct sip_pkt* spkt_p)
         ss->calling.port= spkt_p->rtp_port;
         log("I create new session !!!!!!!!! callid %s \n",ss->call_id);
     }
+	else
+	{
+		
+	}
 }
 void _update_session(struct sip_pkt* spkt_p)
 {

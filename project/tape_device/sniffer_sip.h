@@ -6,6 +6,9 @@
 #include <pthread.h>
 #include "sniffer_lib.h"
 #include "list.h"
+#include "phone_session.h"
+#include <time.h>
+
 
 enum session_state
 {
@@ -77,30 +80,7 @@ struct sip_pkt
     enum session_state state;
 };
 
-struct  person
-{
-    struct in_addr  ip;
-    u16             port;
-    char*           number;
-    char*           name;
-};
 
-
-struct session_info
-{
-    
-    struct list_head node;
-    
-    enum session_state state; /*从报文中同步过来。*/
-    char* call_id;
-    /* 如何判断calling? 如何说INVATE的IP层srcIP == sdp.connection IP.  this ip 就
-        是calling. */
-    struct  person calling;
-    struct  person called;
-    pthread_t rtp_sniffer_tid;
-    
-     
-}; /* 用于记录本次通信的两者的ip, port, 电话号码，用户名等等。*/
 
 pthread_t sniffer_sip_start();
 

@@ -51,7 +51,7 @@ int main(int argc,char* argv[])
 	main_get_config();
 	printf("get config and upload \n");
 	rtp_sniffer_init();
-#if 1	
+#if 0	
 	uploader = uploader_start();
 	if(uploader == 0)
 	{
