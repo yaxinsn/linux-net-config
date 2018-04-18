@@ -16,3 +16,12 @@ SIP的报文中找到电话两者的身份信息生成一个文件。
 被叫语音文件名：session_id_called_IP_number_createtime.g722
 
 
+
+ 在x86下编译，需要先安装
+ yum install libpcap-devel 
+  yum install json-c 
+  yum install json-c-devel    
+      
+
+再make
+ make -f Makefile-x86 
