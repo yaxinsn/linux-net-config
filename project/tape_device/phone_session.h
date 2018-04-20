@@ -38,6 +38,18 @@
 #include "types_.h"
 #include "list.h"
 
+enum session_state
+{
+    SS_ERROR = 0,
+    SS_INVATE = 1,
+    SS_TRYING = 2,
+    SS_RINGING = 3,
+    SS_OK,
+    SS_ACK,
+    SS_BYE,
+
+    
+};
 /* 从各种信令协议中，找出通话双方的信息，如IP，电话号码，通话时间等等。 */
 struct  person
 {

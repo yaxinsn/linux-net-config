@@ -10,18 +10,6 @@
 #include <time.h>
 
 
-enum session_state
-{
-    SS_ERROR = 0,
-    SS_INVATE = 1,
-    SS_TRYING = 2,
-    SS_RINGING = 3,
-    SS_OK,
-    SS_ACK,
-    SS_BYE,
-
-    
-};
 
 
 struct sip_msg_header
