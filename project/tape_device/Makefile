@@ -6,7 +6,7 @@ CC=arm-linux-gnueabihf-gcc
 TARGET_DIR=../../rundir
 STAGING_DIR=../
 TOOLCHAIN_DIR=/opt/gcc-linaro-arm-linux-gnueabihf-4.7-2013.03-20130313_linux/arm-linux-gnueabihf/libc/
-progam_src =   main.c  sniffer_sip.c  upload.c config.c sniffer_rtp.c
+progam_src =   main.c  sniffer_sip.c  config.c sniffer_rtp.c
 progam_obj =  $(progam_src:.c=.o)
 lib_src =  linux-utils.c  log.c  sniffer_lib.c  thread_msg_engine.c  wake_utils.c json.c str_lib.c
 lib_obj =  $(lib_src:.c=.o)

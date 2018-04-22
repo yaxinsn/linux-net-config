@@ -23,12 +23,20 @@
 #include "sniffer_rtp.h"
 #include "upload.h"
 
+#include "phone_session.h"
+
 struct rtp_session_info
 {
     
     struct list_head node;
     pthread_t   thread_id;
     pcap_t*     pd;
+    
+    struct  person calling;  //sip msg header From
+    struct  person called;   //sip msg header to
+    FILE*   save_all_fp; 
+    FILE*   save_calling_fp;
+    FILE*   save_called_fp;
 };
 
 
@@ -48,7 +56,7 @@ struct rtp_session_info* _rtp_new_session()
     rs = (struct session_info*)malloc(sizeof(struct rtp_session_info));
     if ( rs == NULL)
         return NULL;
-        
+    bzero(rs,sizeof(struct rtp_session_info));  
     pthread_mutex_lock(&rtp_ctx.head_lock);
     list_add(&rs->node,&rtp_ctx.rtp_head);
     pthread_mutex_unlock(&rtp_ctx.head_lock);
@@ -111,47 +119,49 @@ static void session_down()
     msg = ( struct phone_msg*)buf;
     msg->event = RING_DOWN;
     len = sizeof(struct phone_msg);
+#if 0
     ret = uploader_push_msg(msg, len);
     if(ret != 0)
         log_err("uploader_push_msg (RING_DOWN) failed,ret %d \n",ret);
-    
+#endif
 }
-static void session_talking(struct iphdr* iph,struct udphdr* udph)
+
+struct rttphdr{
+    u8 version;
+    u8 type;
+    u16 sequence_number;
+    u16 extended_sequence_number;
+    u32 timestamp;
+    u32 synchronization_source_id;
+}__attribute__  ((__packed__));
+static int save_rtp_frame(FILE* fp,void* buffer,int len)
+{
+    if(fp)
+        return fwrite(buffer,len,1,fp);
+    return -1;
+}
+static void session_talking(struct iphdr* iph,struct udphdr* udph,struct rtp_session_info* rs)
 {
     char buf[2000] = {0};
 
     u8* rtp_pkt = (u8*)(udph+1);
-    int rtp_len = ntohs(udph->len);
+    int rtp_len = ntohs(udph->len)-8;
+    u8* rttp_payload = NULL;
+   // struct phone_msg* msg;
+    rttp_payload = rtp_pkt+sizeof(struct rttphdr);
     
-    struct phone_msg* msg;
-    
-    struct talking_mesg* tm;
-    int len;
-    int ret;
-    msg = ( struct phone_msg*)buf;
-    msg->event = TALKING;
-    len = sizeof(struct phone_msg);
+    log("DEBUG here");
+    if(iph->saddr == rs->calling.ip.s_addr)
+    {
+        save_rtp_frame(rs->save_calling_fp,rttp_payload,rtp_len-sizeof(struct rttphdr));
+    }
 
-    len = rtp_len + sizeof(struct phone_msg) +sizeof( struct talking_mesg);
-    if(len > sizeof(buf))
-        log_err("total len %d > 2000 \n",len);
+    if(iph->saddr == rs->called.ip.s_addr)
+    {
+        save_rtp_frame(rs->save_called_fp,rttp_payload,rtp_len-sizeof(struct rttphdr));
+    }
 
-    
-    tm = (struct talking_mesg*)msg->data;
-
-    tm->phone_sender_ip = iph->saddr; /* 本来就是网络序 */
-    tm->phone_sender_port = udph->source;
-    tm->phone_rcv_ip = iph->daddr;
-    tm->phone_rcv_port = udph->dest;
-    tm->lenth = rtp_len;
-    
-    memcpy(tm->data,rtp_pkt,rtp_len);
-    
-    
-    ret = uploader_push_msg(msg, len);
-    if(ret != 0)
-        log_err("uploader_push_msg (TALKING) failed,ret %d \n",ret);
-    
+    save_rtp_frame(rs->save_all_fp,rttp_payload,rtp_len-sizeof(struct rttphdr));
 }
 
 /****************************************************/
@@ -163,6 +173,12 @@ static void sighandler(int s)
         if(n)
         {
             pcap_close(n->pd);
+            if(n->save_called_fp)
+                fclose(n->save_called_fp);
+            if(n->save_calling_fp)
+                fclose(n->save_calling_fp);
+            if(n->save_all_fp)
+                fclose(n->save_all_fp);
             _rtp_del_session(n);
         }    
         log(" %ul thread quit \n", (unsigned long)pthread_self());
@@ -204,8 +220,14 @@ void close_rtp_sniffer(struct session_info* ss)
 
 void handle_rtp(struct iphdr* iph,struct udphdr* udph,void* arg)
 {
+
+
+	struct rtp_session_info* rs = arg;
+
+    
+
     //struct session_info* ss = (struct session_info*)arg;
-    session_talking( iph,udph);
+    session_talking( iph,udph,rs);
 }
 static void sniffer_handle_rtp(u_char * user, const struct pcap_pkthdr * packet_header, const u_char * packet_content)
 {
@@ -236,7 +258,10 @@ static int sniffer_rtp_loop2( pcap_t *p,void* arg)
 
 static void* sniffer_rtp_loop1(void* arg)
 {
-    pcap_t *pd =arg;
+
+	struct rtp_session_info* rs = arg;
+
+    pcap_t *pd =rs->pd;
 
 	while(1)
 	{
@@ -256,23 +281,41 @@ static pcap_t* init_sniffer_rtp(struct session_info* ss)
 	{
 		log("open_pcap_file failed ! \n");
 		return NULL;
-	}
-#if 1
-	
+	}	
 	sprintf(filter,"udp and host %s and port %d ",
 	    inet_ntoa(ss->calling.ip),
 	    ss->calling.port);
-#else
-	sprintf(filter,"icmp");
-#endif
-	sniffer_setfilter(pd,filter);
+
+	if(sniffer_setfilter(pd,filter) <0){
+	    log("rtp sniffer set filter failed!\n");
+	    exit(1);
+	}
     return pd;
 }
 pthread_t setup_rtp_sniffer(struct session_info* ss)
 {
 	pthread_t tid;
 	pcap_t* pd;
+	char file_name[256]={0};
+	char file_name2[256]={0};
+	char file_name3[256]={0};
 	struct rtp_session_info* rs;
+	int t= 0;
+
+    time_t a;
+    time(&a);
+
+	if (ss->mode == SS_MODE_CALLED){
+	    log("this session is called (slave) \n");
+	}
+	else if(ss->mode == SS_MODE_CALLING){
+	    log("this session is calling(master)\n");
+    }
+    else
+    {
+        log_err("this session is bad ession.!!!!");
+    }
+	 
 	log("sniffer rtp info: \n");
 	
 	log("sniffer calling %s:%d \n",inet_ntoa(ss->calling.ip),ss->calling.port);
@@ -289,18 +332,39 @@ pthread_t setup_rtp_sniffer(struct session_info* ss)
         log_err("rtp_new_session failed\n");
         
     }
+    log("DEBUG here\n");
+    memcpy(&rs->called,&ss->called,sizeof(struct  person));
+    memcpy(&rs->calling,&ss->calling,sizeof(struct  person));
+    rs->pd = pd;
+    t += sprintf(file_name,"./%s_to_",inet_ntoa(ss->calling.ip));
+    t += sprintf(file_name+t,"%s_",inet_ntoa(ss->called.ip));
+   t += sprintf(file_name+t,"%u",a);
     
+    log("DEBUG here file_name %s\n",file_name);
+    rs->save_all_fp = fopen(file_name,"w");
+
+
+    t=0;
+    t += sprintf(file_name2,"./%s_",inet_ntoa(ss->called.ip));
+    t += sprintf(file_name2+t,"%u",a);
+    rs->save_called_fp = fopen(file_name2,"w");
+    
+    t=0;
+    t += sprintf(file_name3,"./%s_",inet_ntoa(ss->calling.ip));
+    t += sprintf(file_name3+t,"%u",a);
+    rs->save_calling_fp = fopen(file_name3,"w");
+    
+    log("DEBUG here");
+
 	//session_up();
 	
-	if(pthread_create(&tid,NULL,sniffer_rtp_loop1,pd))
+	if(pthread_create(&tid,NULL,sniffer_rtp_loop1,rs))
 	{
 		log("create msg_engine_start sniffer_sip_loop failed\n");
 		return -1;
 	}
-	if(rs){
-	    rs->pd = pd;
-	    rs->thread_id = tid;
-	}
+	rs->thread_id = tid;
+	
     pthread_detach(tid);//线程与sip线程分离。
 
 	return tid;

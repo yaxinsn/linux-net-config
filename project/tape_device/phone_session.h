@@ -59,10 +59,12 @@ struct  person
     char*           name;
 };
 
+#define SS_MODE_CALLING 1
+#define  SS_MODE_CALLED 2
 
 struct session_info
 {
-    
+    int mode;// 1是主叫，2是被叫。
     struct list_head node;
     time_t ring_time;  //响玲的时间点。
 	time_t comm_time; //接通的时间点

@@ -179,6 +179,7 @@ int __parse_line(char* line,char**key,char** v)
 	return 0;
 }
 #endif
+//从 SDP 报文里c=中找到 IP信息。
 int parse_sdp_connection_info(char* p, struct sip_pkt* sp)
 {
     int count;
@@ -212,6 +213,14 @@ int parse_msg_body(struct sip_pkt* sp)
 {
     //SIP body, 也许可以包含各种协议数据，SDP是其中一种，我们主要是解析SDP.
     //find "m="
+    /*
+       m= audio 10028 RTP/AVP 112 98 9 8 0 18 97 101
+       c= IN IP4 172.25.16.10
+       m=一行10028是port, 
+       c=行中IP是  RTP的ip.
+       
+        */
+     log("DEBUG here\n");
     char* b = sp->sip_msg_body;
     const char* key="m=";
     const char* key2="c=";
@@ -238,32 +247,59 @@ char* __find_msg_hdr_key(char* mh,const char* key,int* v_len)
     return find_key_from_line(mh,key,v_len,": ");
 
 }
-char* setup_sip_pkt(char* mh,const char* key,char** dest)
+char* __parse_msg_header_str_element(char* src,const char* key,char** dest)
 {
     int len=0;
     char* v;
-    v = __find_msg_hdr_key(mh,key,&len);
-    if(v)
+    v = __find_msg_hdr_key(src,key,&len);
+    if(v){
+    
         *dest = strndup(v,len);
+	    log(" %s=%s \n",key,*dest);
+    }
+    else
+    {
+	    log(" not find %s\n",key);
+        
+    }
     return *dest;
 }
+int __parse_msg_header_element(char* src,char* key)
+{
 
+	char* v;
+    int len;
+    v = __find_msg_hdr_key(src,key,&len);
+    if(v != NULL)
+    {
+        log(" %s==<%d>\n",key,v);
+    }
+    else
+        log("not find %s failed \n",key);
+
+
+}
 int parse_msg_header(char* mh,struct sip_pkt* sp)
 {
 	const char* key = "Content-Length";
-	const char* key1 = "Content-Type";
+	const char* key_Content_Type = "Content-Type";
 	const char* call_id = "Call-ID";
 	
 	char* v;
 	int len;
-	
-    v = setup_sip_pkt(mh,call_id,&sp->msg_hdr.call_id);
-	if(v == NULL)
-	{
-	    log_err("I not find the callid \n");
-	}
-	else
-	    log("I get callid %s \n",v);
+
+	if(sp->msg_hdr.call_id == NULL)
+        v = __parse_msg_header_str_element(mh,"Call-ID",&sp->msg_hdr.call_id);
+    
+	if(sp->msg_hdr.from == NULL)
+        v = __parse_msg_header_str_element(mh,"From",&sp->msg_hdr.from);
+    
+	if(sp->msg_hdr.to == NULL)
+        v = __parse_msg_header_str_element(mh,"To",&sp->msg_hdr.to);
+
+	if(sp->msg_hdr.user_agent == NULL)
+        v = __parse_msg_header_str_element(mh,"User-Agent",&sp->msg_hdr.user_agent);
+
 
     v= __find_msg_hdr_key(mh,key,&len);
 	if(v != NULL)
@@ -274,7 +310,7 @@ int parse_msg_header(char* mh,struct sip_pkt* sp)
 	else
 	    log("not find %s failed \n",key);
 
-    v= __find_msg_hdr_key(mh,key1,&len);
+    v= __find_msg_hdr_key(mh,key_Content_Type,&len);
     if(v!= NULL)
     {
 	    if(!strncmp(v,"application/sdp",len))
@@ -284,7 +320,7 @@ int parse_msg_header(char* mh,struct sip_pkt* sp)
         }
     }
     else
-        log("not find %s \n",key1);
+        log("not find %s \n",key_Content_Type);
 
     return 0;
 }
@@ -373,6 +409,18 @@ void _create_session(struct sip_pkt* spkt_p)
     struct session_info* ss = _si_new_session();
     if(ss)
     {
+    /*
+    如果是一个INVITE报文，报文中还有body(SDP)，则这个报文来自主叫。
+    rtp_ip是主叫的 ip.
+    
+    */
+        if(spkt_p->state == SS_INVATE)
+        {
+            if(spkt_p->body_sdp)
+                ss->mode = SS_MODE_CALLING;
+            else
+                ss->mode = SS_MODE_CALLED;
+        }   
         ss->state = spkt_p->state;
         ss->call_id = strdup(spkt_p->msg_hdr.call_id);
         ss->calling.ip.s_addr = spkt_p->rtp_ip.s_addr;
@@ -381,10 +429,67 @@ void _create_session(struct sip_pkt* spkt_p)
     }
 	else
 	{
-		
+		log_errno("ss is not created!\n");
 	}
 }
+
 void _update_session(struct sip_pkt* spkt_p)
+{
+    struct session_info* ss;
+    if(spkt_p->msg_hdr.call_id)
+    {
+       
+        ss = _si_find_session(spkt_p->msg_hdr.call_id);
+       
+        if(ss != NULL)
+        {
+        
+            log("I find the session (callid %s) \n",ss->call_id);
+            if (ss->mode == SS_MODE_CALLED && spkt_p->state == SS_ACK)
+            {
+                ss->state = spkt_p->state;
+                if(spkt_p->body_sdp)
+                {
+                    ss->calling.ip.s_addr = spkt_p->rtp_ip.s_addr;
+                    ss->calling.port = spkt_p->rtp_port;
+                    ss->rtp_sniffer_tid = setup_rtp_sniffer(ss);
+                }
+            }
+            else if (ss->mode == SS_MODE_CALLED && spkt_p->state == SS_OK)
+            {
+                ss->state = spkt_p->state;
+                if(spkt_p->body_sdp)
+                {
+                    ss->called.ip.s_addr = spkt_p->rtp_ip.s_addr;
+                    ss->called.port = spkt_p->rtp_port;
+                }
+            }
+            else if  (ss->mode ==SS_MODE_CALLING && spkt_p->state == SS_OK)
+            {
+                ss->state = spkt_p->state;
+                if(spkt_p->body_sdp)
+                {
+                    ss->called.ip.s_addr = spkt_p->rtp_ip.s_addr;
+                    ss->called.port = spkt_p->rtp_port;
+                    ss->rtp_sniffer_tid = setup_rtp_sniffer(ss);
+                }
+            }
+            else
+            {
+                log_err("session (callid %s)  not update any info!\n",spkt_p->msg_hdr.call_id);
+                
+            }
+            
+            
+        }
+        else
+        {
+            
+            log_err("I not find the session (callid %s) \n",spkt_p->msg_hdr.call_id);
+        }
+    }
+}
+void _update_session2(struct sip_pkt* spkt_p)
 {
     struct session_info* ss;
     if(spkt_p->msg_hdr.call_id)
@@ -394,6 +499,7 @@ void _update_session(struct sip_pkt* spkt_p)
         log("debug here \n");
         if(ss != NULL)
         {
+          
             log("I find the session (callid %s) \n",ss->call_id);
             ss->state = spkt_p->state;
             if(spkt_p->body_sdp)
@@ -432,6 +538,7 @@ void _close_session(struct sip_pkt* spkt_p)
         else
         {
             log_err("not find the session (callid %s) \n",spkt_p->msg_hdr.call_id);
+            return;
         }
         _si_del_session(ss);
     }
@@ -450,6 +557,8 @@ void sync_session(struct sip_pkt* spkt_p)
         _create_session(spkt_p);
         break;
         case SS_ACK:
+        _update_session(spkt_p);
+        break;
         case SS_OK:
         _update_session(spkt_p);
         break;
@@ -498,7 +607,7 @@ int check_sip( struct udphdr* udph)
     mesg_header = split_line_next(sip);
     if(mesg_header == NULL)
         return -1;
-
+#if 1
 	mesg_body = strstr(mesg_header,SIPPACKENDTAG);
     if(mesg_body == NULL){
         log("sip not messgae body \n");
@@ -509,21 +618,23 @@ int check_sip( struct udphdr* udph)
         mesg_body[3] = 0;
         spkt_p->sip_msg_body = mesg_body+strlen(SIPPACKENDTAG);
     }
+#endif
     //三大块切分完成。
     //下面各处理各的。
-    //start-line
+    //1, start-line
 	spkt_p->line = sip;
 	
-    log("[%s:%d]I spkt_p->line %s \n" ,__func__,__LINE__,spkt_p->line);
+    log("[%s:%d] spkt_p->line %s \n" ,__func__,__LINE__,spkt_p->line);
 	pase_sip_start_line(spkt_p->line,spkt_p);
 	
-	//message header
+	//2, message header
 	
 	if((mesg_header[0] != '\r')&&(mesg_header[1] != '\n'))
 	{
 		parse_msg_header(mesg_header,spkt_p);
 	}
-	if (spkt_p->sip_msg_body)
+	//3, message body.
+	if ((spkt_p->body_sdp)&&(spkt_p->sip_msg_body))
 	    parse_msg_body(spkt_p);
 
 
@@ -569,11 +680,12 @@ static void send_sip_pkt(struct iphdr* iph,struct udphdr* udph)
     
     memcpy(tm->data,rtp_pkt,rtp_len);
     
-    
+#if 0    
     ret = uploader_push_msg(msg, len);
     if(ret != 0)
         log_err("uploader_push_msg (SIP_PKT) failed,ret %d \n",ret);
-    
+
+#endif    
 }
 
 /***************************************
@@ -594,7 +706,7 @@ static void sniffer_handle_sip(u_char * user, const struct pcap_pkthdr * packet_
 	if(0 != check_udp(iph,&udph))	
 		goto error;
 	
-    send_sip_pkt(iph,udph);/* 把sip报文转给upload一份。 */
+    //send_sip_pkt(iph,udph);/* 把sip报文转给upload一份。 */
 	check_sip(udph);
 	
 error:
