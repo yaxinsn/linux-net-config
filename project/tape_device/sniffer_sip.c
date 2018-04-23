@@ -75,7 +75,7 @@ struct session_info* _si_find_session(char* call_id)
     struct session_info* n;
     struct list_head* si_head;
     si_head = &sip_ctx.si_head;
-    log("debug callid %s \n",call_id);
+    sip_log("debug callid %s \n",call_id);
     
     list_for_each_entry_safe(p,n,si_head,node)
     {
@@ -186,10 +186,13 @@ int parse_sdp_connection_info(char* p, struct sip_pkt* sp)
         return -1;
     media_ele = parse_tokens(p,&count);
     if(media_ele != NULL && count >= 3){
-        log(" %s %s %s \n",media_ele[0],media_ele[1],media_ele[2]);
+        sip_log("find the ip info from conection of sdp : %s %s %s \n",media_ele[0],media_ele[1],media_ele[2]);
        inet_aton(media_ele[2], &sp->rtp_ip );
     }
     FREE(media_ele);
+
+	return 0;
+	
 }
 int parse_sdp_media_dest(char* p,struct sip_pkt* sp)
 {
@@ -201,7 +204,7 @@ int parse_sdp_media_dest(char* p,struct sip_pkt* sp)
         return -1;
     media_ele = parse_tokens(p,&count);
     if(media_ele != NULL && count >= 2){
-        log(" %s %s \n",media_ele[0],media_ele[1]);
+        sip_log("fidn the  port info from media of sdp : %s %s \n",media_ele[0],media_ele[1]);
         sp->rtp_port = atoi(media_ele[1]);
     }
     FREE(media_ele);
@@ -218,7 +221,7 @@ int parse_msg_body(struct sip_pkt* sp)
        c=行中IP是  RTP的ip.
        
         */
-     log("DEBUG here\n");
+     sip_log("DEBUG here\n");
     char* b = sp->sip_msg_body;
     const char* key="m=";
     const char* key2="c=";
@@ -233,7 +236,7 @@ int parse_msg_body(struct sip_pkt* sp)
     if(p != NULL)
     {
         p+=2;
-        log("DEBUG here\n");
+        sip_log("DEBUG here\n");
         parse_sdp_connection_info(p,sp);
     }
     return 0;
@@ -253,11 +256,11 @@ char* __parse_msg_header_str_element(char* src,const char* key,char** dest)
     if(v){
     
         *dest = strndup(v,len);
-	    log(" %s=%s \n",key,*dest);
+	    sip_log(" %s=%s \n",key,*dest);
     }
     else
     {
-	    log(" not find %s\n",key);
+	    sip_log(" not find %s\n",key);
         
     }
     return *dest;
@@ -270,18 +273,19 @@ int __parse_msg_header_element(char* src,char* key)
     v = __find_msg_hdr_key(src,key,&len);
     if(v != NULL)
     {
-        log(" %s==<%d>\n",key,v);
+        sip_log(" %s==<%d>\n",key,v);
     }
-    else
-        log("not find %s failed \n",key);
-
-
+    else{
+        sip_log_err("not find %s failed \n",key);
+		return -1;
+    }
+	return 0;
 }
 int parse_msg_header(char* mh,struct sip_pkt* sp)
 {
 	const char* key = "Content-Length";
 	const char* key_Content_Type = "Content-Type";
-	const char* call_id = "Call-ID";
+//	const char* call_id = "Call-ID";
 	
 	char* v;
 	int len;
@@ -303,10 +307,10 @@ int parse_msg_header(char* mh,struct sip_pkt* sp)
 	if(v != NULL)
 	{
 	    sp->msg_hdr.content_length = atoi(v);
-	    log("%s== %d \n",key,sp->msg_hdr.content_length);
+	    sip_log("%s== %d \n",key,sp->msg_hdr.content_length);
 	}
 	else
-	    log("not find %s failed \n",key);
+	    sip_log_err("not find %s failed \n",key);
 
     v= __find_msg_hdr_key(mh,key_Content_Type,&len);
     if(v!= NULL)
@@ -314,11 +318,11 @@ int parse_msg_header(char* mh,struct sip_pkt* sp)
 	    if(!strncmp(v,"application/sdp",len))
         {
             sp->body_sdp = 1; //this pkt is SDP, I will parse this msgbody.and this body is SDP 
-            log("body have sdp  \n");
+            sip_log("find the application/sdp, the sip body have sdp  \n");
         }
     }
     else
-        log("not find %s \n",key_Content_Type);
+        sip_log_err("not find %s \n",key_Content_Type);
 
     return 0;
 }
@@ -327,7 +331,7 @@ int parse_sip_start_line_request_state(char* l,struct sip_pkt* sp)
 {
     const char* key2  = "INVITE ";
     char* p;
-    log("start line %s \n",l);
+    sip_log("start line %s \n",l);
     p = strstr(l,key2);
     if(p)
     {
@@ -353,7 +357,7 @@ int parse_sip_start_line_response_state(char* l,struct sip_pkt* sp)
 {
     const char* key2  = "100 Trying";
     char* p;
-    log("start line %s \n",l);
+    sip_log("start line %s \n",l);
     p = strstr(l,key2);
     if(p)
     {
@@ -384,12 +388,12 @@ int pase_sip_start_line(char* l,struct sip_pkt* sp)
 	char* p = strstr(l,sip_key);
 	if(p != NULL)
 	{
-	    log("request \n");
+	    sip_log("this pkt is request \n");
 		sp->type = 1;  //request;
 	}
 	else if((p = strstr(l,sip_key1)) != NULL)
 	{
-	    log("response \n");
+	    sip_log("thsi pkt is response \n");
 	    sp->type = 2;// response
 	}
 	else
@@ -423,11 +427,11 @@ void _create_session(struct sip_pkt* spkt_p)
         ss->call_id = strdup(spkt_p->msg_hdr.call_id);
         ss->calling.ip.s_addr = spkt_p->rtp_ip.s_addr;
         ss->calling.port= spkt_p->rtp_port;
-        log("I create new session !!!!!!!!! callid %s \n",ss->call_id);
+        sip_log("I create new session !!!!!!!!! callid %s \n",ss->call_id);
     }
 	else
 	{
-		log_errno("ss is not created!\n");
+		sip_log_err("ss is not created!\n");
 	}
 }
 
@@ -442,7 +446,7 @@ void _update_session(struct sip_pkt* spkt_p)
         if(ss != NULL)
         {
         
-            log("I find the session (callid %s) \n",ss->call_id);
+            sip_log("I find the session (callid %s) \n",ss->call_id);
             if (ss->mode == SS_MODE_CALLED && spkt_p->state == SS_ACK)
             {
                 ss->state = spkt_p->state;
@@ -474,7 +478,7 @@ void _update_session(struct sip_pkt* spkt_p)
             }
             else
             {
-                log_err("session (callid %s)  not update any info!\n",spkt_p->msg_hdr.call_id);
+                sip_log_err("session (callid %s)  not update any info!\n",spkt_p->msg_hdr.call_id);
                 
             }
             
@@ -483,7 +487,7 @@ void _update_session(struct sip_pkt* spkt_p)
         else
         {
             
-            log_err("I not find the session (callid %s) \n",spkt_p->msg_hdr.call_id);
+            sip_log_err("I not find the session (callid %s) \n",spkt_p->msg_hdr.call_id);
         }
     }
 }
@@ -492,30 +496,30 @@ void _update_session2(struct sip_pkt* spkt_p)
     struct session_info* ss;
     if(spkt_p->msg_hdr.call_id)
     {
-        log("debug here \n");
+        sip_log("debug here \n");
         ss = _si_find_session(spkt_p->msg_hdr.call_id);
-        log("debug here \n");
+        sip_log("debug here \n");
         if(ss != NULL)
         {
           
-            log("I find the session (callid %s) \n",ss->call_id);
+            sip_log("I find the session (callid %s) \n",ss->call_id);
             ss->state = spkt_p->state;
             if(spkt_p->body_sdp)
             {
                 ss->called.ip.s_addr = spkt_p->rtp_ip.s_addr;
                 ss->called.port = spkt_p->rtp_port;
-                log("I find the session (callid %s) \n",ss->call_id);
+                sip_log("I find the session (callid %s) \n",ss->call_id);
                 ss->rtp_sniffer_tid = setup_rtp_sniffer(ss);
             }
         }
         else
         {
-            log("not find the session (callid %s) \n",spkt_p->msg_hdr.call_id);
+            sip_log_err("not find the session (callid %s) \n",spkt_p->msg_hdr.call_id);
         }
     }
     else
     {
-        log_err(" this spkt not callid ,so bad \n");
+        sip_log_err(" this spkt not callid ,so bad \n");
     }
 }
 
@@ -527,28 +531,27 @@ void _close_session(struct sip_pkt* spkt_p)
         ss = _si_find_session(spkt_p->msg_hdr.call_id);
         if(ss != NULL)
         {
-            log("I find the session (callid %s) \n",ss->call_id);
+            sip_log("I find the session (callid %s),and close it. \n",ss->call_id);
             ss->state = spkt_p->state;
             
-            log("I find the session (callid %s) \n",ss->call_id);
             close_rtp_sniffer(ss);
         }
         else
         {
-            log_err("not find the session (callid %s) \n",spkt_p->msg_hdr.call_id);
+            sip_log_err("not find the session (callid %s) \n",spkt_p->msg_hdr.call_id);
             return;
         }
         _si_del_session(ss);
     }
     else
     {
-        log_err(" this spkt not callid ,so bad \n");
+        sip_log_err(" this spkt not callid ,so bad \n");
     }
 
 }
 void sync_session(struct sip_pkt* spkt_p)
 {
-    log("pkt state %d \n",spkt_p->state);
+    sip_log("pkt state %d \n",spkt_p->state);
     switch(spkt_p->state)
     {
         case SS_INVATE:
@@ -608,7 +611,7 @@ int check_sip( struct udphdr* udph)
 #if 1
 	mesg_body = strstr(mesg_header,SIPPACKENDTAG);
     if(mesg_body == NULL){
-        log("sip not messgae body \n");
+        sip_log("sip not messgae body \n");
         
     }
     else{
@@ -622,7 +625,7 @@ int check_sip( struct udphdr* udph)
     //1, start-line
 	spkt_p->line = sip;
 	
-    log("[%s:%d] spkt_p->line %s \n" ,__func__,__LINE__,spkt_p->line);
+    sip_log("[%s:%d] spkt_p->line %s \n" ,__func__,__LINE__,spkt_p->line);
 	pase_sip_start_line(spkt_p->line,spkt_p);
 	
 	//2, message header
@@ -642,11 +645,14 @@ int check_sip( struct udphdr* udph)
 	return 0;
 	
 }
+#if 0
+
 /*
 send_sip_pkt:
 
 把SIP报文也发给upload.
 */
+
 static void send_sip_pkt(struct iphdr* iph,struct udphdr* udph)
 {
     char buf[2000] = {0};
@@ -665,7 +671,7 @@ static void send_sip_pkt(struct iphdr* iph,struct udphdr* udph)
 
     len = rtp_len + sizeof(struct phone_msg) +sizeof( struct talking_mesg);
     if(len > sizeof(buf))
-        log_err("total len %d > 2000 \n",len);
+        sip_log_err("total len %d > 2000 \n",len);
 
     
     tm = (struct talking_mesg*)msg->data;
@@ -685,7 +691,7 @@ static void send_sip_pkt(struct iphdr* iph,struct udphdr* udph)
 
 #endif    
 }
-
+#endif
 /***************************************
 处理被抓到的SIP报文。
 ****************************************/
@@ -734,7 +740,7 @@ void* sniffer_sip_loop(void* arg)
 {
 
 	char filter[200] = {0};
-    printf("%s:%d \n",__func__,__LINE__);
+    //printf("%s:%d \n",__func__,__LINE__);
     pcap_t* pd=0;
     #if 1
 	//pd = open_pcap_file("enp0s3",65535,1,0);
@@ -742,7 +748,7 @@ void* sniffer_sip_loop(void* arg)
 	if(pd == NULL)
 	{
 
-		log("open_pcap_file failed ! \n");
+		sip_log_err("open_pcap_file failed ! \n");
 		exit(1);
 	}
 
@@ -753,7 +759,7 @@ void* sniffer_sip_loop(void* arg)
 	
 #endif
     
-    log("sniffer_loop_sip  \n");
+    sip_log("sniffer_loop_sip  \n");
 
 	while(1)
 	{
@@ -769,7 +775,7 @@ pthread_t __sniffer_sip_start(void)
    // printf("%s:%d \n",__func__,__LINE__);
 	if(pthread_create(&tid,NULL,sniffer_sip_loop,NULL))
 	{
-		log("create msg_engine_start sniffer_sip_loop failed\n");
+		sip_log_err("create msg_engine_start sniffer_sip_loop failed\n");
 		return -1;
 	}
 
@@ -791,11 +797,11 @@ pthread_t sniffer_sip_start(void)
 	pthread_t tid;
 	if(__sniffer_init() != 0)
 	{
-		log("sniffer failed ,so program exit!\n");
+		sip_log("sniffer failed ,so program exit!\n");
 		exit(1);
 	}
 	tid = __sniffer_sip_start();
-    log("%s:%d tid %d\n",__func__,__LINE__,tid);
+    sip_log("%s:%d tid %d\n",__func__,__LINE__,tid);
 	return tid;
 
 }

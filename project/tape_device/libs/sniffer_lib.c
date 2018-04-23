@@ -139,7 +139,7 @@ int check_iphdr( const struct pcap_pkthdr * phdr, const u_char * pkt,
 {
 
 	const struct ethhdr* ethh = NULL;
-	const struct iphdr* iph;
+	struct iphdr* iph;
 	const u8*   data = pkt;
 	const u16* vlan_proto = 0;
 	if (phdr->len != phdr->caplen)
@@ -186,6 +186,7 @@ int check_iphdr( const struct pcap_pkthdr * phdr, const u_char * pkt,
 		log(" ip tot len is beyond the caplen! \n");
 		goto inhdr_error;
 	}
+
 	*iphdr_p = iph;
 	
 	return 0;

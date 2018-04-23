@@ -46,7 +46,7 @@ void main_get_config()
 }
 int main(int argc,char* argv[])
 {
-	pthread_t uploader;
+	//pthread_t uploader;
 	pthread_t sniffer;
 	main_get_config();
 	printf("get config and upload \n");
@@ -60,16 +60,10 @@ int main(int argc,char* argv[])
 	}
 #endif	
     sniffer = sniffer_sip_start();
-    
-    if(sniffer < 0)
-	{
-		log("sniffer_sip_start start error, exit\n");
-		exit(1);
-	}
 	
     printf("%s:%d \n",__func__,__LINE__);
 	pthread_join(sniffer,NULL);
-	pthread_join(uploader,NULL);
+	//pthread_join(uploader,NULL);
     printf("%s:%d \n",__func__,__LINE__);
 	return 0;
 }

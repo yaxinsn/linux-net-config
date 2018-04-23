@@ -1,10 +1,10 @@
 
-/*
+/******************************************
 说明:
 本程序，会启动一个专用于抓RTP报文的线程。
 由sniffer_sip来启动或是关闭线程。
-把抓到的RTP报文按一定的要求，转给upload
-*/
+把抓到的RTP报文按一定的要求，然后保存成文件。
+***************************************/
 #include <stdio.h>
 #include <stdlib.h>
 #include <pcap.h>
@@ -14,14 +14,11 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <arpa/inet.h>
-
-
 #include <signal.h>
 
 #include "log.h"
-
 #include "sniffer_rtp.h"
-#include "upload.h"
+//#include "upload.h"
 
 #include "phone_session.h"
 
@@ -52,8 +49,9 @@ struct rtp_ctx_t rtp_ctx;
 
 struct rtp_session_info* _rtp_new_session()
 {
-    struct rtp_session_info* rs =NULL;
-    rs = (struct session_info*)malloc(sizeof(struct rtp_session_info));
+    struct rtp_session_info* rs = NULL;
+	
+    rs = (struct rtp_session_info*)malloc(sizeof(struct rtp_session_info));
     if ( rs == NULL)
         return NULL;
     bzero(rs,sizeof(struct rtp_session_info));  
@@ -110,6 +108,7 @@ static void session_up()
 }
 #endif
 /* 向upload发一个ring down的报文。应该是没什么作用了。 */
+#if 0
 static void session_down()
 {
     char buf[256] = {0};
@@ -125,7 +124,7 @@ static void session_down()
         log_err("uploader_push_msg (RING_DOWN) failed,ret %d \n",ret);
 #endif
 }
-
+#endif
 struct rttphdr{
     u8 version;
     u8 type;
@@ -142,8 +141,6 @@ static int save_rtp_frame(FILE* fp,void* buffer,int len)
 }
 static void session_talking(struct iphdr* iph,struct udphdr* udph,struct rtp_session_info* rs)
 {
-    char buf[2000] = {0};
-
     u8* rtp_pkt = (u8*)(udph+1);
     int rtp_len = ntohs(udph->len)-8;
     u8* rttp_payload = NULL;
@@ -267,6 +264,7 @@ static void* sniffer_rtp_loop1(void* arg)
 	{
 		sniffer_rtp_loop2(pd,arg);
 	}
+	return NULL;
 }
 
 static pcap_t* init_sniffer_rtp(struct session_info* ss)
@@ -338,20 +336,21 @@ pthread_t setup_rtp_sniffer(struct session_info* ss)
     rs->pd = pd;
     t += sprintf(file_name,"./%s_to_",inet_ntoa(ss->calling.ip));
     t += sprintf(file_name+t,"%s_",inet_ntoa(ss->called.ip));
-   t += sprintf(file_name+t,"%u",a);
+   t += sprintf(file_name+t,"%lu",a);
     
     log("DEBUG here file_name %s\n",file_name);
     rs->save_all_fp = fopen(file_name,"w");
 
 
+
     t=0;
     t += sprintf(file_name2,"./%s_",inet_ntoa(ss->called.ip));
-    t += sprintf(file_name2+t,"%u",a);
+    t += sprintf(file_name2+t,"%lu",a);
     rs->save_called_fp = fopen(file_name2,"w");
     
     t=0;
     t += sprintf(file_name3,"./%s_",inet_ntoa(ss->calling.ip));
-    t += sprintf(file_name3+t,"%u",a);
+    t += sprintf(file_name3+t,"%lu",a);
     rs->save_calling_fp = fopen(file_name3,"w");
     
     log("DEBUG here");
