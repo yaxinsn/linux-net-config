@@ -16,8 +16,8 @@ struct sip_msg_header
 {
 	char* contant;
 	char* expires;
-	char* from; //from 是主叫的number
-	char* to;  //被叫number
+	char* from; //from 鏄富鍙殑number
+	char* to;  //琚彨number
 	char* call_id;
 	char* via;
 	
@@ -62,7 +62,7 @@ struct sip_pkt
 	struct sip_msg_header msg_hdr;
 	u8 body_sdp;
 	
-	u16    rtp_port;//不知道是src dest.
+	u16    rtp_port;//涓嶇煡閬撴槸src dest.
     struct in_addr rtp_ip;
 	//struct session_info* ss;
 	

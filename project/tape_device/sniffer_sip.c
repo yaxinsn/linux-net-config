@@ -1,11 +1,9 @@
-
-
 /******************************************
 *
-* ±¾ÎÄ¼şµÄ³ÌĞòÖ÷ÒªÊÇÓÃÀ´×¥ SIPµÈ±¨ÎÄ¡£
-* ±¾³ÌĞò×¥sipµÄ±¨ÎÄ£¬²¢½âÎö³ösipÀïµÄcall-id,ÒÔ´Ë×÷Îªkey,°ÑpktµÄ¹ı³Ì·Åµ½
-Ò»¸ösessionÖĞ£¬session·Åµ½Ò»¸öÈ«¾ÖµÄÁ´±íÖĞ¡£
-¸ú×ÙÃ¿¸ösessionµÄ´ÓÉúµ½ËÀµÄ¹ı³Ì¡£×îºófree session.
+* æœ¬æ–‡ä»¶çš„ç¨‹åºä¸»è¦æ˜¯ç”¨æ¥æŠ“ SIPç­‰æŠ¥æ–‡ã€‚
+* æœ¬ç¨‹åºæŠ“sipçš„æŠ¥æ–‡ï¼Œå¹¶è§£æå‡ºsipé‡Œçš„call-id,ä»¥æ­¤ä½œä¸ºkey,æŠŠpktçš„è¿‡ç¨‹æ”¾åˆ°
+ä¸€ä¸ªsessionä¸­ï¼Œsessionæ”¾åˆ°ä¸€ä¸ªå…¨å±€çš„é“¾è¡¨ä¸­ã€‚
+è·Ÿè¸ªæ¯ä¸ªsessionçš„ä»ç”Ÿåˆ°æ­»çš„è¿‡ç¨‹ã€‚æœ€åfree session.
 
 * 
 *******************************************/
@@ -91,14 +89,14 @@ struct session_info* _si_find_session(char* call_id)
 }
 /**************************session lib end ****************************/
 /*
-sniffer_handle_sip Ò»¸ö°üÒ»¸ö°üµØ½øĞĞ´¦Àí¡£
-Ã¿×¥Ò»¸ö°ü±»µ÷ÓÃÒ»´Î¡£
+sniffer_handle_sip ä¸€ä¸ªåŒ…ä¸€ä¸ªåŒ…åœ°è¿›è¡Œå¤„ç†ã€‚
+æ¯æŠ“ä¸€ä¸ªåŒ…è¢«è°ƒç”¨ä¸€æ¬¡ã€‚
 
 struct pcap_pkthdr  
 {  
-    struct timeval ts; // ×¥µ½°üµÄÊ±¼ä  
-    bpf_u_int32 caplen; // ±íÊ¾×¥µ½µÄÊı¾İ³¤¶È  
-    bpf_u_int32 len; // ±íÊ¾Êı¾İ°üµÄÊµ¼Ê³¤¶È  
+    struct timeval ts; // æŠ“åˆ°åŒ…çš„æ—¶é—´  
+    bpf_u_int32 caplen; // è¡¨ç¤ºæŠ“åˆ°çš„æ•°æ®é•¿åº¦  
+    bpf_u_int32 len; // è¡¨ç¤ºæ•°æ®åŒ…çš„å®é™…é•¿åº¦  
 }  
 
 
@@ -106,14 +104,14 @@ struct pcap_pkthdr
 /****************************************** check and parse **************************************/
 
 
-// SIP°üÄÚÈİ±ê¼Ç
-#define SIPTAGANDVERSION1 "SIP/2.0"		// »ØÓ¦, ÔÚµÚÒ»ĞĞ¿ªÊ¼Î»ÖÃ
-#define SIPTAGANDVERSION2 " SIP/2.0"	// ÇëÇó, ÔÚµÚÒ»ĞĞ½áÊøÎ»ÖÃ
-// SIP°ü½áÊø±ê¼Ç
+// SIPåŒ…å†…å®¹æ ‡è®°
+#define SIPTAGANDVERSION1 "SIP/2.0"		// å›åº”, åœ¨ç¬¬ä¸€è¡Œå¼€å§‹ä½ç½®
+#define SIPTAGANDVERSION2 " SIP/2.0"	// è¯·æ±‚, åœ¨ç¬¬ä¸€è¡Œç»“æŸä½ç½®
+// SIPåŒ…ç»“æŸæ ‡è®°
 #define SIPPACKENDTAG "\r\n\r\n"
 #define SIPSDPPACKENDTAG "\r\n"
 
-/* ÔÚÒ»ĞĞµÄ×îºó¼Ó¸ö\0,\r\n-->\0 È»ºó·µ»ØÏÂÒ»ĞĞ¡£ */
+/* åœ¨ä¸€è¡Œçš„æœ€ååŠ ä¸ª\0,\r\n-->\0 ç„¶åè¿”å›ä¸‹ä¸€è¡Œã€‚ */
 char* split_line_next(char* l)
 {
 	char* next = strstr(l,SIPSDPPACKENDTAG);
@@ -179,7 +177,7 @@ int __parse_line(char* line,char**key,char** v)
 	return 0;
 }
 #endif
-//´Ó SDP ±¨ÎÄÀïc=ÖĞÕÒµ½ IPĞÅÏ¢¡£
+//ä» SDP æŠ¥æ–‡é‡Œc=ä¸­æ‰¾åˆ° IPä¿¡æ¯ã€‚
 int parse_sdp_connection_info(char* p, struct sip_pkt* sp)
 {
     int count;
@@ -195,7 +193,7 @@ int parse_sdp_connection_info(char* p, struct sip_pkt* sp)
 }
 int parse_sdp_media_dest(char* p,struct sip_pkt* sp)
 {
-    //find portºÅ
+    //find portå·
     // media_type Media_port Medai_protocol fromat format 
     int count;
     char** media_ele;
@@ -211,13 +209,13 @@ int parse_sdp_media_dest(char* p,struct sip_pkt* sp)
 }
 int parse_msg_body(struct sip_pkt* sp)
 {
-    //SIP body, Ò²Ğí¿ÉÒÔ°üº¬¸÷ÖÖĞ­ÒéÊı¾İ£¬SDPÊÇÆäÖĞÒ»ÖÖ£¬ÎÒÃÇÖ÷ÒªÊÇ½âÎöSDP.
+    //SIP body, ä¹Ÿè®¸å¯ä»¥åŒ…å«å„ç§åè®®æ•°æ®ï¼ŒSDPæ˜¯å…¶ä¸­ä¸€ç§ï¼Œæˆ‘ä»¬ä¸»è¦æ˜¯è§£æSDP.
     //find "m="
     /*
        m= audio 10028 RTP/AVP 112 98 9 8 0 18 97 101
        c= IN IP4 172.25.16.10
-       m=Ò»ĞĞ10028ÊÇport, 
-       c=ĞĞÖĞIPÊÇ  RTPµÄip.
+       m=ä¸€è¡Œ10028æ˜¯port, 
+       c=è¡Œä¸­IPæ˜¯  RTPçš„ip.
        
         */
      log("DEBUG here\n");
@@ -410,8 +408,8 @@ void _create_session(struct sip_pkt* spkt_p)
     if(ss)
     {
     /*
-    Èç¹ûÊÇÒ»¸öINVITE±¨ÎÄ£¬±¨ÎÄÖĞ»¹ÓĞbody(SDP)£¬ÔòÕâ¸ö±¨ÎÄÀ´×ÔÖ÷½Ğ¡£
-    rtp_ipÊÇÖ÷½ĞµÄ ip.
+    å¦‚æœæ˜¯ä¸€ä¸ªINVITEæŠ¥æ–‡ï¼ŒæŠ¥æ–‡ä¸­è¿˜æœ‰body(SDP)ï¼Œåˆ™è¿™ä¸ªæŠ¥æ–‡æ¥è‡ªä¸»å«ã€‚
+    rtp_ipæ˜¯ä¸»å«çš„ ip.
     
     */
         if(spkt_p->state == SS_INVATE)
@@ -619,8 +617,8 @@ int check_sip( struct udphdr* udph)
         spkt_p->sip_msg_body = mesg_body+strlen(SIPPACKENDTAG);
     }
 #endif
-    //Èı´ó¿éÇĞ·ÖÍê³É¡£
-    //ÏÂÃæ¸÷´¦Àí¸÷µÄ¡£
+    //ä¸‰å¤§å—åˆ‡åˆ†å®Œæˆã€‚
+    //ä¸‹é¢å„å¤„ç†å„çš„ã€‚
     //1, start-line
 	spkt_p->line = sip;
 	
@@ -640,14 +638,14 @@ int check_sip( struct udphdr* udph)
 
 	sync_session(spkt_p);
 	__free_sip_pkt(spkt_p);
-	free(sip);//add it ,2017.11.12 --ĞèÒªÔÙ×ĞÏ¸¼ì²éËü¡£
+	free(sip);//add it ,2017.11.12 --éœ€è¦å†ä»”ç»†æ£€æŸ¥å®ƒã€‚
 	return 0;
 	
 }
 /*
 send_sip_pkt:
 
-°ÑSIP±¨ÎÄÒ²·¢¸øupload.
+æŠŠSIPæŠ¥æ–‡ä¹Ÿå‘ç»™upload.
 */
 static void send_sip_pkt(struct iphdr* iph,struct udphdr* udph)
 {
@@ -672,7 +670,7 @@ static void send_sip_pkt(struct iphdr* iph,struct udphdr* udph)
     
     tm = (struct talking_mesg*)msg->data;
 
-    tm->phone_sender_ip = iph->saddr; /* ±¾À´¾ÍÊÇÍøÂçĞò */
+    tm->phone_sender_ip = iph->saddr; /* æœ¬æ¥å°±æ˜¯ç½‘ç»œåº */
     tm->phone_sender_port = udph->source;
     tm->phone_rcv_ip = iph->daddr;
     tm->phone_rcv_port = udph->dest;
@@ -689,7 +687,7 @@ static void send_sip_pkt(struct iphdr* iph,struct udphdr* udph)
 }
 
 /***************************************
-´¦Àí±»×¥µ½µÄSIP±¨ÎÄ¡£
+å¤„ç†è¢«æŠ“åˆ°çš„SIPæŠ¥æ–‡ã€‚
 ****************************************/
 static void sniffer_handle_sip(u_char * user, const struct pcap_pkthdr * packet_header, const u_char * packet_content)
 {
@@ -706,7 +704,7 @@ static void sniffer_handle_sip(u_char * user, const struct pcap_pkthdr * packet_
 	if(0 != check_udp(iph,&udph))	
 		goto error;
 	
-    //send_sip_pkt(iph,udph);/* °Ñsip±¨ÎÄ×ª¸øuploadÒ»·İ¡£ */
+    //send_sip_pkt(iph,udph);/* æŠŠsipæŠ¥æ–‡è½¬ç»™uploadä¸€ä»½ã€‚ */
 	check_sip(udph);
 	
 error:
@@ -714,9 +712,9 @@ error:
 }
 
 /*
-ÕâÀïÓĞÁ½¸ö×¥°üµÄ¹ı³Ì£¬Ò»ÊÇÖ»×¥ sip, ÁíÒ»¸ö×¥RTP
-ÕâÀï¾ÍĞèÒªÁ½¸öÏß³Ì¡£Ò»¸öÏß³ÌÊÇ³£×¤£¬ÓÃÓÚ×¥SIP 
-ÁíÒ»¸öÏß³ÌÊÇ¶¯Ì¬µÄ£¬ÓÃÓÚ×¥RTP.
+è¿™é‡Œæœ‰ä¸¤ä¸ªæŠ“åŒ…çš„è¿‡ç¨‹ï¼Œä¸€æ˜¯åªæŠ“ sip, å¦ä¸€ä¸ªæŠ“RTP
+è¿™é‡Œå°±éœ€è¦ä¸¤ä¸ªçº¿ç¨‹ã€‚ä¸€ä¸ªçº¿ç¨‹æ˜¯å¸¸é©»ï¼Œç”¨äºæŠ“SIP 
+å¦ä¸€ä¸ªçº¿ç¨‹æ˜¯åŠ¨æ€çš„ï¼Œç”¨äºæŠ“RTP.
 
 */
 int sniffer_loop_sip( pcap_t *p)
@@ -725,11 +723,11 @@ int sniffer_loop_sip( pcap_t *p)
 	 return 0;
 }
 /***********************************************
-Ïß³ÌÆô¶¯ÓëÖ´ĞĞÌå
+çº¿ç¨‹å¯åŠ¨ä¸æ‰§è¡Œä½“
 ************************************************/
 /*
 sniffer_sip_loop:
-´ò¿ªpcap_file,½øÈë×¥°üÖ´ĞĞÌå¡£
+æ‰“å¼€pcap_file,è¿›å…¥æŠ“åŒ…æ‰§è¡Œä½“ã€‚
 
 */
 void* sniffer_sip_loop(void* arg)

@@ -1,9 +1,9 @@
 
 /*
-ËµÃ÷:
-±¾³ÌĞò£¬»áÆô¶¯Ò»¸ö×¨ÓÃÓÚ×¥RTP±¨ÎÄµÄÏß³Ì¡£
-ÓÉsniffer_sipÀ´Æô¶¯»òÊÇ¹Ø±ÕÏß³Ì¡£
-°Ñ×¥µ½µÄRTP±¨ÎÄ°´Ò»¶¨µÄÒªÇó£¬×ª¸øupload
+è¯´æ˜:
+æœ¬ç¨‹åºï¼Œä¼šå¯åŠ¨ä¸€ä¸ªä¸“ç”¨äºæŠ“RTPæŠ¥æ–‡çš„çº¿ç¨‹ã€‚
+ç”±sniffer_sipæ¥å¯åŠ¨æˆ–æ˜¯å…³é—­çº¿ç¨‹ã€‚
+æŠŠæŠ“åˆ°çš„RTPæŠ¥æ–‡æŒ‰ä¸€å®šçš„è¦æ±‚ï¼Œè½¬ç»™upload
 */
 #include <stdio.h>
 #include <stdlib.h>
@@ -92,7 +92,7 @@ struct rtp_session_info* _rtp_find_session(pthread_t   thread_id)
 }
 
 /****************************/
-//Õâ¸öº¯ÊıÒ²Ó¦¸ÃÃ»×÷ÓÃÁË¡£
+//è¿™ä¸ªå‡½æ•°ä¹Ÿåº”è¯¥æ²¡ä½œç”¨äº†ã€‚
 #if 0
 static void session_up()
 {
@@ -109,7 +109,7 @@ static void session_up()
     
 }
 #endif
-/* Ïòupload·¢Ò»¸öring downµÄ±¨ÎÄ¡£Ó¦¸ÃÊÇÃ»Ê²Ã´×÷ÓÃÁË¡£ */
+/* å‘uploadå‘ä¸€ä¸ªring downçš„æŠ¥æ–‡ã€‚åº”è¯¥æ˜¯æ²¡ä»€ä¹ˆä½œç”¨äº†ã€‚ */
 static void session_down()
 {
     char buf[256] = {0};
@@ -365,7 +365,7 @@ pthread_t setup_rtp_sniffer(struct session_info* ss)
 	}
 	rs->thread_id = tid;
 	
-    pthread_detach(tid);//Ïß³ÌÓësipÏß³Ì·ÖÀë¡£
+    pthread_detach(tid);//çº¿ç¨‹ä¸sipçº¿ç¨‹åˆ†ç¦»ã€‚
 
 	return tid;
 

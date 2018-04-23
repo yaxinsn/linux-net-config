@@ -13,12 +13,12 @@
 #include <pthread.h>
 #include "types_.h"
 
-/* snifferÓëuploaderÖ®¼äµÄÏûÏ¢¶¨Òå */
+/* snifferä¸uploaderä¹‹é—´çš„æ¶ˆæ¯å®šä¹‰ */
 
 enum PHONE_EVENT{
-	RING_UP = 1, /* ´òµç»° */
-	TALKING, /* Í¨»° */
-	RING_DOWN, /* ¹Òµç»° */
+	RING_UP = 1, /* æ‰“ç”µè¯ */
+	TALKING, /* é€šè¯ */
+	RING_DOWN, /* æŒ‚ç”µè¯ */
 	SIP_PKT
 };
 
