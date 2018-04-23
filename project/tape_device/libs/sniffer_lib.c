@@ -1,5 +1,3 @@
-//http://blog.csdn.net/mjt_csdn/article/details/47122189
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <pcap.h>
@@ -16,10 +14,10 @@ void handle(u_char * user, const struct pcap_pkthdr * h, const u_char * p) ;
 
 
 
-//²¶»ñµÄÊı¾İ°üÄÚÈİÓÉÕâ¸öº¯Êı´¦Àí£¬Õâ¸ö»Øµ÷º¯ÊıµÄ¸ñÊ½±ØĞëÊÇÏÂÃæµÄĞÎÊ½
+//æ•è·çš„æ•°æ®åŒ…å†…å®¹ç”±è¿™ä¸ªå‡½æ•°å¤„ç†ï¼Œè¿™ä¸ªå›è°ƒå‡½æ•°çš„æ ¼å¼å¿…é¡»æ˜¯ä¸‹é¢çš„å½¢å¼
 void handle(u_char * user, const struct pcap_pkthdr * packet_header, const u_char * packet_content)
 {
-    pcap_dump(user, packet_header,packet_content);    //Êä³öÊı¾İµ½ÎÄ¼ş,Êä³ö¹ıºóµÄÎÄ¼ş¾ÍÊÇpcap¸ñÊ½µÄ£¬¿ÉÒÔÓÃwireshark´ò¿ª
+    pcap_dump(user, packet_header,packet_content);    //è¾“å‡ºæ•°æ®åˆ°æ–‡ä»¶,è¾“å‡ºè¿‡åçš„æ–‡ä»¶å°±æ˜¯pcapæ ¼å¼çš„ï¼Œå¯ä»¥ç”¨wiresharkæ‰“å¼€
     printf("I get one packet! \n");
 }
 
@@ -27,59 +25,59 @@ void handle(u_char * user, const struct pcap_pkthdr * packet_header, const u_cha
 int get_device_info(char* device)
 {
 	
-	char ebuf[PCAP_ERRBUF_SIZE];   //´í·Å´íÎóĞÅÏ¢
-	bpf_u_int32 netmaskp;//´æ·ÅÑÚÂë   ĞèÒªÏÈ×ª»»Îª in_addr¸ñÊ½µÄ£¬È»ºóÔÙ½øĞĞinet_ntoa()×ª»»
-    bpf_u_int32 netp;  //´æ·ÅÍøÂçºÅ  ĞèÒªÏÈ×ª»»Îª in_addr¸ñÊ½µÄ£¬È»ºóÔÙ½øĞĞinet_ntoa()×ª»»
-    char *netmask;    //´æ·Å×ª»»ºóµÄÑÚÂë
-    char *net;  //´æ·Å×ª»»ºóµÄÍøÂçºÅ
-    struct in_addr addr;   //×÷Îª×ª»»µÄ¹ı¶È
+	char ebuf[PCAP_ERRBUF_SIZE];   //é”™æ”¾é”™è¯¯ä¿¡æ¯
+	bpf_u_int32 netmaskp;//å­˜æ”¾æ©ç    éœ€è¦å…ˆè½¬æ¢ä¸º in_addræ ¼å¼çš„ï¼Œç„¶åå†è¿›è¡Œinet_ntoa()è½¬æ¢
+    bpf_u_int32 netp;  //å­˜æ”¾ç½‘ç»œå·  éœ€è¦å…ˆè½¬æ¢ä¸º in_addræ ¼å¼çš„ï¼Œç„¶åå†è¿›è¡Œinet_ntoa()è½¬æ¢
+    char *netmask;    //å­˜æ”¾è½¬æ¢åçš„æ©ç 
+    char *net;  //å­˜æ”¾è½¬æ¢åçš„ç½‘ç»œå·
+    struct in_addr addr;   //ä½œä¸ºè½¬æ¢çš„è¿‡åº¦
     int ret;
     ret = pcap_lookupnet(device, &netp,&netmaskp,ebuf);
     if(-1 == (ret))
         printf("pcap_net error\n");
 
-    addr.s_addr = netp; //ÏÈ¸³Öµ¸øaddr
-    net = inet_ntoa(addr);//½«addr½øĞĞ×ª»»£¬³Éµã·ÖÊ®½øÖÆ
+    addr.s_addr = netp; //å…ˆèµ‹å€¼ç»™addr
+    net = inet_ntoa(addr);//å°†addrè¿›è¡Œè½¬æ¢ï¼Œæˆç‚¹åˆ†åè¿›åˆ¶
     printf("net is:%s %x\n",net,netp);
 
-    addr.s_addr = netmaskp; //ÏÈ¸³Öµ¸øaddr
-    netmask = inet_ntoa(addr);//½«addr½øĞĞ×ª»»£¬³Éµã·ÖÊ®½øÖÆ
+    addr.s_addr = netmaskp; //å…ˆèµ‹å€¼ç»™addr
+    netmask = inet_ntoa(addr);//å°†addrè¿›è¡Œè½¬æ¢ï¼Œæˆç‚¹åˆ†åè¿›åˆ¶
     printf("netmask is:%s %x\n",netmask,netmaskp);
 	return 0;
 }
 /*
 open_pcap_file 
-device :Ö¸¶¨Íø¿¨
-snaplen £º²¶»ñÊı¾İ°üµÄ³¤¶È¡£
-promise : 1±íÊ¾ÊÇ»ìÔÓÄ£Ê½£¬ÆäËü·Ç»ìÔÓÄ£Ê½
-to_ms   £º´Ë¾ä±úµÄµÈ´ıÊ±¼ä¡£
+device :æŒ‡å®šç½‘å¡
+snaplen ï¼šæ•è·æ•°æ®åŒ…çš„é•¿åº¦ã€‚
+promise : 1è¡¨ç¤ºæ˜¯æ··æ‚æ¨¡å¼ï¼Œå…¶å®ƒéæ··æ‚æ¨¡å¼
+to_ms   ï¼šæ­¤å¥æŸ„çš„ç­‰å¾…æ—¶é—´ã€‚
 */
 pcap_t* open_pcap_file(const char* device,int snaplen,int promise,int to_ms)
 {
 	char ebuf[1024];
-	pcap_t *pd = NULL;    //´æ·ÅÊı¾İ°ü²¶»ñÃèÊö×Ö
-	int  pcap_link;  //ÓÃÓÚ·µ»ØÊı¾İÁ´Â·²ãÀàĞÍ
+	pcap_t *pd = NULL;    //å­˜æ”¾æ•°æ®åŒ…æ•è·æè¿°å­—
+	int  pcap_link;  //ç”¨äºè¿”å›æ•°æ®é“¾è·¯å±‚ç±»å‹
 	struct bpf_program fcode;
-	//»ñµÃ²¶»ñÃèÊö×Ö
+	//è·å¾—æ•è·æè¿°å­—
     pd = pcap_open_live(device, snaplen,promise,to_ms,ebuf);
     if(NULL == pd){
         printf("pcap_open_live error %d %s\n",errno,strerror(errno));
         exit(-1);
 	}
-//·µ»ØÁ´Â·²ãÀàĞÍ£¬Ã¿Ò»ÖÖ¶¼ÓĞÒ»¸ö´úºÅ
+//è¿”å›é“¾è·¯å±‚ç±»å‹ï¼Œæ¯ä¸€ç§éƒ½æœ‰ä¸€ä¸ªä»£å·
     pcap_link = pcap_datalink(pd);
     printf("now the datalink is:%d\n",pcap_link);
 
-    //·µ»ØÊµ¼Ê×¥È¡µÄ×Ö·û
+    //è¿”å›å®é™…æŠ“å–çš„å­—ç¬¦
     int real_cap_len = pcap_snapshot(pd);
     printf("the real cap :%d \n",real_cap_len);
-	    //ÉèÖÃ¹ıÂË¹æÔò
+	    //è®¾ç½®è¿‡æ»¤è§„åˆ™
 	
 #if 1
     pcap_compile(pd, &fcode, "arp",1, 0);
     printf("pcap_compile error %d %s\n",errno,strerror(errno));
 //printf("--------------\n");
-    //ÉèÖÃ¹ıÂËÆ÷
+    //è®¾ç½®è¿‡æ»¤å™¨
     if (pcap_setfilter(pd, &fcode) < 0){
         printf("pcap_setfilter error %d %s\n",errno,strerror(errno));
     }
@@ -91,7 +89,7 @@ pcap_t* open_pcap_file(const char* device,int snaplen,int promise,int to_ms)
 
 int sniffer_setfilter(pcap_t * pd,const char* bpf_str)
 {
-	//ÉèÖÃ¹ıÂË¹æÔò
+	//è®¾ç½®è¿‡æ»¤è§„åˆ™
 	struct bpf_program fcode;
 
 	//printf("---------%s:%d---pd %p--bpf_str %s\n",__func__,__LINE__,pd,bpf_str);
@@ -99,10 +97,10 @@ int sniffer_setfilter(pcap_t * pd,const char* bpf_str)
     	printf("pcap_compile error %d %s\n",errno,strerror(errno));
 
 //	log("---------%s:%d-----\n",__func__,__LINE__);
-    //ÉèÖÃ¹ıÂËÆ÷
+    //è®¾ç½®è¿‡æ»¤å™¨
     if(pcap_setfilter(pd, &fcode) < 0)
         printf("pcap_setfilter error %d %s\n",errno,strerror(errno));
-    //Êı¾İ°ü²¶»ñ
+    //æ•°æ®åŒ…æ•è·
     return 0;
 }
 #if 0
@@ -115,9 +113,9 @@ void sniff_handle(u_char * user, const struct pcap_pkthdr * packet_header, const
 
 int sniff_loop_test( pcap_t *p)
 {
-	//´ò¿ªÓÃÓÚ²¶»ñÊı¾İ°üµÄÎÄ¼ş
+	//æ‰“å¼€ç”¨äºæ•è·æ•°æ®åŒ…çš„æ–‡ä»¶
 	 const char* fname = "./icmp.pcap";
-	 pcap_dumper_t *pd_t;  //´ò¿ªÓÃÓÚ±£´æ²¶»ñÊı¾İ°üµÄÎÄ¼ş£¬ º¯Êı·µ»ØÖµ
+	 pcap_dumper_t *pd_t;  //æ‰“å¼€ç”¨äºä¿å­˜æ•è·æ•°æ®åŒ…çš„æ–‡ä»¶ï¼Œ å‡½æ•°è¿”å›å€¼
 	 
 	
     if( NULL == (pd_t = pcap_dump_open(p, fname) ) )
