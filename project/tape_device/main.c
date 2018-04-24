@@ -48,8 +48,10 @@ int main(int argc,char* argv[])
 {
 	//pthread_t uploader;
 	pthread_t sniffer;
+	
+	log("test get config and upload \n");
 	main_get_config();
-	printf("get config and upload \n");
+	log("get config and upload \n");
 	rtp_sniffer_init();
 #if 0	
 	uploader = uploader_start();

@@ -30,28 +30,43 @@
 
 #include "log.h"
 
+
+
+void __local_time_str(char* time_str,int len)
+{
+
+
+	time_t a;
+	struct tm* t;
+	//char time_str[128];
+	time(&a);
+	t = localtime(&a);
+	strftime(time_str,len,"%Y-%m-%d_%H-%M-%S",t);
+//printf("%s	\n",time_str);
+
+
+}
 void _logger_file(const char* file_name, const char* func, int line, const char* fmt,...)
 {
     int fd;
     va_list args;
     FILE* log_fp=NULL;
    // static int log_line = 0;
-    char buf_time[62];
-    int l;
+    char buf_time[128]={0};
+    
     struct stat st_a;
    
     if (log_fp == NULL) {
         if ((log_fp = fopen(file_name, "a+")) == NULL)
           return;
     }
-    time_t a;
-    time(&a);
+   // time_t a;
+    //time(&a);
+	__local_time_str(buf_time,sizeof(buf_time)-1);
+	
+    fprintf(log_fp,"%-20s",buf_time);
 
-    l = sprintf(buf_time,"%s",ctime(&a));
-    buf_time[l-1] = 0;
-    fprintf(log_fp,"%s",buf_time);
-
-    fprintf(log_fp," |%s|%d| ",func,line);
+    fprintf(log_fp," |%20s|%5d| ",func,line);
     va_start(args,fmt);
     vfprintf(log_fp,fmt,args);
     va_end(args);
