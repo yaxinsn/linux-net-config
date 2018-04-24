@@ -298,6 +298,9 @@ int parse_msg_header(char* mh,struct sip_pkt* sp)
     
 	if(sp->msg_hdr.to == NULL)
         v = __parse_msg_header_str_element(mh,"To",&sp->msg_hdr.to);
+	
+	if(sp->msg_hdr.to == NULL)
+        v = __parse_msg_header_str_element(mh,"Date",&sp->msg_hdr.date);
 
 	if(sp->msg_hdr.user_agent == NULL)
         v = __parse_msg_header_str_element(mh,"User-Agent",&sp->msg_hdr.user_agent);
@@ -588,6 +591,8 @@ void __free_sip_pkt(struct sip_pkt* spkt_p)
     FREE(msg_hdr->user_agent);
     FREE(msg_hdr->Max_forwards);
     FREE(msg_hdr->allow);
+    FREE(msg_hdr->date);
+	
     
 }
 int check_sip( struct udphdr* udph)

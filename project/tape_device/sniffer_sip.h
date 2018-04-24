@@ -25,6 +25,7 @@ struct sip_msg_header
 	char* user_agent;
 	char* Max_forwards;
 	char* allow;
+	char* date;
 	int content_length;
 	
 };
