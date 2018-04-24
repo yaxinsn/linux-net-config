@@ -198,10 +198,14 @@ inhdr_error:
 int check_udp( struct iphdr* iph,struct udphdr** udph_p)
 {
 	struct udphdr* udph;
+	int ip_payload_len = ntohs(iph->tot_len)- iph->ihl*4;
 	if(iph->protocol == IPPROTO_UDP)
 	{
 		udph = (struct udphdr*)((u8*)iph + iph->ihl*4);
 		*udph_p = udph;
+		if(udph->len+8 > ip_payload_len)
+			return -1;
+		
 		return 0;
 	}
 	return -1;
@@ -219,3 +223,4 @@ int check_tcp( struct iphdr* iph,struct tcphdr** tcph_p)
 	}
 	return -1;
 }
+

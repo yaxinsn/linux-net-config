@@ -1923,6 +1923,9 @@ static void sniffer_handle_skinny(u_char * user, const struct pcap_pkthdr * pack
 	const struct pcap_pkthdr* phdr = packet_header;
 	struct iphdr* iph = NULL;
 	struct tcphdr* th = NULL;
+	u8* tcp_payload;
+	int tcp_payload_len;
+	int tcp_len;
 	
 	ret = check_iphdr(phdr,packet_content,&iph);
 	if(ret != 0)
@@ -1932,8 +1935,11 @@ static void sniffer_handle_skinny(u_char * user, const struct pcap_pkthdr * pack
 		goto error;
 	
     //send_sip_pkt(iph,udph);/* 把sip报文转给upload一份。 */
-    
-	handler_skinny_element(th);
+
+	tcp_payload = (u8*)th+(th->doff * 4);
+	tcp_len = ntohs(iph->tot_len)- iph->ihl*4;
+	tcp_payload_len = tcp_len - (th->doff * 4);
+	handler_skinny_element(tcp_payload,tcp_payload_len);
 	
 error:
 	return;
