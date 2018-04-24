@@ -67,7 +67,7 @@ struct session_info
     int mode;// 1是主叫，2是被叫。
     struct list_head node;
     struct tm ring_time;  //响玲的时间点。
-	time_t comm_time; //接通的时间点 . ack 的时间，或是ACK的ok的时间。
+	time_t comm_time; //接通的时间点 . ack 的时间，或是ACK的ok的时间。  strptime — date and time conversion
 	time_t hangup_time;//
     enum session_state state; /*从报文中同步过来。*/
     char* call_id; 
