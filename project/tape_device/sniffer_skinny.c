@@ -112,7 +112,7 @@ static const value_string message_id[] = {
   { 0x0091, "SpeedDialStatRes" },
   { 0x0092, "LineStatRes" },
   { 0x0093, "ConfigStatRes" },
-  { 0x0094, "TimeDateRes" },
+  { 0x0094, "TimeDateRes" },---------liudan
   { 0x0095, "StartSessionTransmission" },
   { 0x0096, "StopSessionTransmission" },
   { 0x0097, "ButtonTemplateRes" },
@@ -1787,7 +1787,7 @@ static const skinny_opcode_map_t skinny_opcode_map[] = {
   {0x0091, handle_default_function                 , SKINNY_MSGTYPE_RESPONSE , "SpeedDialStatResMessage"},
   {0x0092, handle_default_function                      , SKINNY_MSGTYPE_RESPONSE , "LineStatResMessage"},
   {0x0093, handle_default_function                    , SKINNY_MSGTYPE_RESPONSE , "ConfigStatResMessage"},
-  {0x0094, handle_default_function                      , SKINNY_MSGTYPE_RESPONSE , "TimeDateResMessage"},
+  {0x0094, handle_default_function                      , SKINNY_MSGTYPE_RESPONSE , "TimeDateResMessage"},//---liudan
   {0x0095, handle_default_function         , SKINNY_MSGTYPE_EVENT    , "StartSessionTransmissionMessage"},
   {0x0096, handle_default_function          , SKINNY_MSGTYPE_EVENT    , "StopSessionTransmissionMessage"},
   {0x0097, handle_default_function                , SKINNY_MSGTYPE_RESPONSE , "ButtonTemplateResMessage"},
