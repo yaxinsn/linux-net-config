@@ -38,6 +38,20 @@
 #include "types_.h"
 #include "list.h"
 
+struct session_ctx_t
+{
+    pthread_mutex_t head_lock;  //sync
+
+    struct list_head si_head;
+
+};
+struct session_info* si_new_session();
+void si_del_session(struct session_info* si);
+struct session_info* si_find_session(char* call_id);
+
+int session_init();
+
+
 enum session_state
 {
     SS_ERROR = 0,

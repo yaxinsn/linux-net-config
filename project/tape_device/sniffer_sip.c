@@ -35,58 +35,6 @@
 extern struct config_st g_config;
 
 
-
-struct sip_ctx_t
-{
-    pthread_mutex_t head_lock;  //sync
-
-    struct list_head si_head;
-
-};
-struct sip_ctx_t sip_ctx;
-
-
-struct session_info* _si_new_session()
-{
-    struct session_info* ss =NULL;
-    ss = (struct session_info*)malloc(sizeof(struct session_info));
-    if ( ss == NULL)
-        return NULL;
-        
-    pthread_mutex_lock(&sip_ctx.head_lock);
-    list_add(&ss->node,&sip_ctx.si_head);
-    pthread_mutex_unlock(&sip_ctx.head_lock);
-    return ss;
-}
-void _si_del_session(struct session_info* si)
-{
-    FREE(si->call_id);
-    pthread_mutex_lock(&sip_ctx.head_lock);
-
-    list_del(&si->node);
-    
-        pthread_mutex_unlock(&sip_ctx.head_lock);
-    FREE(si);
-    return;
-}
-struct session_info* _si_find_session(char* call_id)
-{
-    struct session_info* p;
-    struct session_info* n;
-    struct list_head* si_head;
-    si_head = &sip_ctx.si_head;
-    sip_log("debug callid %s \n",call_id);
-    
-    list_for_each_entry_safe(p,n,si_head,node)
-    {
-
-        if(!strcmp(call_id,p->call_id))
-        {
-            return p;
-        }
-    }
-    return NULL;
-}
 /**************************session lib end ****************************/
 /*
 sniffer_handle_sip 一个包一个包地进行处理。
@@ -411,7 +359,7 @@ int pase_sip_start_line(char* l,struct sip_pkt* sp)
 
 void _create_session(struct sip_pkt* spkt_p)
 {
-    struct session_info* ss = _si_new_session();
+    struct session_info* ss = si_new_session();
     if(ss)
     {
     /*
@@ -444,7 +392,7 @@ void _update_session(struct sip_pkt* spkt_p)
     if(spkt_p->msg_hdr.call_id)
     {
        
-        ss = _si_find_session(spkt_p->msg_hdr.call_id);
+        ss = si_find_session(spkt_p->msg_hdr.call_id);
        
         if(ss != NULL)
         {
@@ -500,7 +448,7 @@ void _update_session2(struct sip_pkt* spkt_p)
     if(spkt_p->msg_hdr.call_id)
     {
         sip_log("debug here \n");
-        ss = _si_find_session(spkt_p->msg_hdr.call_id);
+        ss = si_find_session(spkt_p->msg_hdr.call_id);
         sip_log("debug here \n");
         if(ss != NULL)
         {
@@ -531,7 +479,7 @@ void _close_session(struct sip_pkt* spkt_p)
     struct session_info* ss;
     if(spkt_p->msg_hdr.call_id)
     {
-        ss = _si_find_session(spkt_p->msg_hdr.call_id);
+        ss = si_find_session(spkt_p->msg_hdr.call_id);
         if(ss != NULL)
         {
             sip_log("I find the session (callid %s),and close it. \n",ss->call_id);
@@ -544,7 +492,7 @@ void _close_session(struct sip_pkt* spkt_p)
             sip_log_err("not find the session (callid %s) \n",spkt_p->msg_hdr.call_id);
             return;
         }
-        _si_del_session(ss);
+        si_del_session(ss);
     }
     else
     {
@@ -791,20 +739,12 @@ pthread_t __sniffer_sip_start(void)
 }
 
 
-int __sniffer_init()
-{
-    INIT_LIST_HEAD(&sip_ctx.si_head);
-	return 0;
-}
+
 
 pthread_t sniffer_sip_start(void)
 {
 	pthread_t tid;
-	if(__sniffer_init() != 0)
-	{
-		sip_log("sniffer failed ,so program exit!\n");
-		exit(1);
-	}
+
 	tid = __sniffer_sip_start();
     sip_log("%s:%d tid %d\n",__func__,__LINE__,tid);
 	return tid;

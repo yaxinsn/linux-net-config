@@ -66,7 +66,7 @@ void _logger_file(const char* file_name, const char* func, int line, const char*
 	
     fprintf(log_fp,"%-20s",buf_time);
 
-    fprintf(log_fp," |%20s|%5d| ",func,line);
+    fprintf(log_fp," |%-20s|%-5d| ",func,line);
     va_start(args,fmt);
     vfprintf(log_fp,fmt,args);
     va_end(args);

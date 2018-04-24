@@ -52,6 +52,7 @@ int main(int argc,char* argv[])
 	log("test get config and upload \n");
 	main_get_config();
 	log("get config and upload \n");
+	session_init();
 	rtp_sniffer_init();
 #if 0	
 	uploader = uploader_start();

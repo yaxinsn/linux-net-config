@@ -188,6 +188,44 @@ int get_config_callcenter(json_object* j_cfg,struct config_st* c )
 	
 	return 0;
 }
+int get_config_callcenter_skinny(json_object* j_cfg,struct config_st* c )
+{	
+	const char* str;
+	struct json_object *o;
+	enum json_type o_type;
+	int ret;
+	struct callcenter_st* call = &c->skinny_call;
+	
+	json_object* j_ = json_object_object_get(j_cfg, "CALLCENTER_SKINNY");
+	if(j_ ==NULL){
+		log("no CALLCENTER");
+		return -1;
+	}
+	//str = json_common_get_string(j_,"PORT");
+	o = json_object_object_get(j_, "PORT");
+	o_type = json_object_get_type(o);
+	if(json_type_int == o_type)
+	{
+		call->port = json_object_get_int(o);
+	}
+	else if (json_type_string == o_type)
+	{
+		call->port = atoi(convert_json_to_str(o));
+	}
+	
+
+	str = json_common_get_string(j_,"IP");
+	if(str != NULL)
+	{
+		ret = inet_pton(AF_INET, str, &call->ip);        
+		if(ret !=1)
+		{
+			log("GET Call center ip failed!");
+		}
+	}
+	
+	return 0;
+}
 
 int get_config_pwd(json_object* j_cfg,struct config_st* c )
 {
@@ -286,9 +324,13 @@ int show_config(struct config_st* c)
 	log("URL %s\n",c->heart_ser.url);
 	log("intval %d\n",c->heart_ser.interval);
 	
-	log("callcenter server:\n");
+	log("callcenter sip server:\n");
 	log("ip %x\n",c->call.ip);
 	log("port %d\n",c->call.port);
+
+	log("callcenter skinny server:\n");
+	log("ip %x\n",c->skinny_call.ip);
+	log("port %d\n",c->skinny_call.port);
 	
 	log("tape server:\n");
 	log("main ip %x\n",c->tape.mainip);

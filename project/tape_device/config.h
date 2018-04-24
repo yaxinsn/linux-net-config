@@ -42,6 +42,7 @@ struct config_st
 	struct hostip_st hostip;
 	struct heart_server_st heart_ser;
 	struct callcenter_st call;
+	struct callcenter_st skinny_call;
 	struct tapeserver_st tape;
 	struct password_st pwd;
 };
