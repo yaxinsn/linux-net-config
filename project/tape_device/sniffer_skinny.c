@@ -1899,57 +1899,22 @@ static const skinny_opcode_map_t skinny_opcode_map[] = {
 #define skinny_log_err(fmt,...)  \
 						skinny_log("ERROR|"fmt,##__VA_ARGS__); 
 
-struct skinny_ctx_t
+
+struct sip_pkt
 {
-    pthread_mutex_t head_lock;  //sync
+	int from_server;// 1  yes (this is respo pkt), 0 no. 0 is to server. this is request pkt.
+	char* line;
+	char*  sip_msg_body;
 
-    struct list_head si_head;
+	struct sip_msg_header msg_hdr;
+	u8 body_sdp;
 
+	u16    rtp_port;//不知道是src dest.
+	struct in_addr rtp_ip;
+	//struct session_info* ss;
+
+	enum session_state state;
 };
-struct skinny_ctx_t skinny_ctx;
-
-/* 三个session的函数。 */
-struct session_info* _si_new_session()
-{
-    struct session_info* ss =NULL;
-    ss = (struct session_info*)malloc(sizeof(struct session_info));
-    if ( ss == NULL)
-        return NULL;
-        
-    pthread_mutex_lock(&sip_ctx.head_lock);
-    list_add(&ss->node,&sip_ctx.si_head);
-    pthread_mutex_unlock(&sip_ctx.head_lock);
-    return ss;
-}
-void _si_del_session(struct session_info* si)
-{
-    FREE(si->call_id);
-    pthread_mutex_lock(&sip_ctx.head_lock);
-
-    list_del(&si->node);
-    
-        pthread_mutex_unlock(&sip_ctx.head_lock);
-    FREE(si);
-    return;
-}
-struct session_info* _si_find_session(char* call_id)
-{
-    struct session_info* p;
-    struct session_info* n;
-    struct list_head* si_head;
-    si_head = &sip_ctx.si_head;
-    sip_log("debug callid %s \n",call_id);
-    
-    list_for_each_entry_safe(p,n,si_head,node)
-    {
-
-        if(!strcmp(call_id,p->call_id))
-        {
-            return p;
-        }
-    }
-    return NULL;
-}
 
 static void sniffer_handle_skinny(u_char * user, const struct pcap_pkthdr * packet_header, const u_char * packet_content)
 {
@@ -1957,17 +1922,18 @@ static void sniffer_handle_skinny(u_char * user, const struct pcap_pkthdr * pack
     
 	const struct pcap_pkthdr* phdr = packet_header;
 	struct iphdr* iph = NULL;
-	struct udphdr* udph = NULL;
+	struct tcphdr* th = NULL;
 	
 	ret = check_iphdr(phdr,packet_content,&iph);
 	if(ret != 0)
 		goto error;
 	
-	if(0 != check_udp(iph,&udph))	
+	if(0 != check_tcp(iph,&th))	
 		goto error;
 	
     //send_sip_pkt(iph,udph);/* 把sip报文转给upload一份。 */
-	check_sip(udph);
+    
+	handler_skinny_element(th);
 	
 error:
 	return;
@@ -1998,16 +1964,16 @@ void* sniffer_skinny_loop(void* arg)
 	if(pd == NULL)
 	{
 
-		skinny_log_err("open_pcap_file failed ! \n");
+		skinny_log_err("open_pcap_file failed ! <%s> and exit\n",strerror(errno));
 		exit(1);
 	}
 
-	sprintf(filter,"udp and host %s and port %d ",
-	inet_ntoa(g_config.skinny_call.ip),
-	g_config.skinny_call.port);
+	sprintf(filter,"tcp and host %s and port %d ",
+		inet_ntoa(g_config.skinny_call.ip),
+		g_config.skinny_call.port);
 	sniffer_setfilter(pd,filter);
 	
-    sip_log("sniffer_skinny_loop ok  \n");
+    skinny_log("sniffer_skinny_loop ok  \n");
 
 	while(1)
 	{
@@ -2019,35 +1985,22 @@ void* sniffer_skinny_loop(void* arg)
 pthread_t __sniffer_skinny_start(void)
 {
 	pthread_t tid;
-	
-   // printf("%s:%d \n",__func__,__LINE__);
 	if(pthread_create(&tid,NULL,sniffer_skinny_loop,NULL))
 	{
-		sip_log_err("create msg_engine_start sniffer_sip_loop failed\n");
+		sip_log_err("create  sniffer_skinny_loop failed\n");
 		return -1;
 	}
-
-   // printf("%s:%d \n",__func__,__LINE__);
 
 	return tid;
 
 }
 
 
-int __sniffer_skinny_init()
-{
-    INIT_LIST_HEAD(&skinny_ctx.si_head);
-	return 0;
-}
 
-pthread_t sniffer_sip_start(void)
+pthread_t sniffer_skinny_start(void)
 {
 	pthread_t tid;
-	if(__sniffer_skinny_init() != 0)
-	{
-		sip_log("sniffer failed ,so program exit!\n");
-		exit(1);
-	}
+
 	tid = __sniffer_skinny_start();
     sip_log("%s:%d tid %d\n",__func__,__LINE__,tid);
 	return tid;

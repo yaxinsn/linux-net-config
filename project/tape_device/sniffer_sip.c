@@ -543,7 +543,7 @@ void __free_sip_pkt(struct sip_pkt* spkt_p)
 	
     
 }
-int check_sip( struct udphdr* udph)
+int handle_sip_pkt_content( struct udphdr* udph)
 {
 	//char* sip = (u8*)(udph+1);
 	
@@ -664,7 +664,7 @@ static void sniffer_handle_sip(u_char * user, const struct pcap_pkthdr * packet_
 		goto error;
 	
     //send_sip_pkt(iph,udph);/* 把sip报文转给upload一份。 */
-	check_sip(udph);
+	handle_sip_pkt_content(udph);
 	
 error:
 	return;
@@ -728,7 +728,7 @@ pthread_t __sniffer_sip_start(void)
    // printf("%s:%d \n",__func__,__LINE__);
 	if(pthread_create(&tid,NULL,sniffer_sip_loop,NULL))
 	{
-		sip_log_err("create msg_engine_start sniffer_sip_loop failed\n");
+		sip_log_err("create  sniffer_sip_loop failed\n");
 		return -1;
 	}
 

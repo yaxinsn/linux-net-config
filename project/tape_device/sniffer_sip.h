@@ -50,7 +50,7 @@ enum RES_TYPE
     RES_RINGING,
 
 };
-struct session_info;
+//struct session_info;
 
 struct sip_pkt
 {

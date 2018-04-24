@@ -17,6 +17,7 @@
 #include <netinet/ip.h> 
 
 #include <linux/udp.h>//struct udphdr
+#include <linux/tcp.h>//struct udphdr
     
 
 #include "log.h"
@@ -30,6 +31,7 @@ int check_iphdr( const struct pcap_pkthdr * phdr, const u_char * pkt,
     struct iphdr** iphdr_p );
 
 int check_udp( struct iphdr* iph,struct udphdr** udph_p);
+int check_tcp( struct iphdr* iph,struct tcphdr** tcph_p);
 
 
 

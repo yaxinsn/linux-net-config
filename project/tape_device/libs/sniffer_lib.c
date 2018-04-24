@@ -206,3 +206,16 @@ int check_udp( struct iphdr* iph,struct udphdr** udph_p)
 	}
 	return -1;
 }
+
+
+int check_tcp( struct iphdr* iph,struct tcphdr** tcph_p)
+{
+	struct tcphdr* h;
+	if(iph->protocol == IPPROTO_TCP)
+	{
+		h = (struct tcphdr*)((u8*)iph + iph->ihl*4);
+		*tcph_p = h;
+		return 0;
+	}
+	return -1;
+}
