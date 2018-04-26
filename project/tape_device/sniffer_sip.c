@@ -374,7 +374,7 @@ void _create_session(struct sip_pkt* spkt_p)
             else
                 ss->mode = SS_MODE_CALLED;
         }   
-        ss->state = spkt_p->state;
+ //       ss->state = spkt_p->state;
         ss->call_id = strdup(spkt_p->msg_hdr.call_id);
         ss->calling.ip.s_addr = spkt_p->rtp_ip.s_addr;
         ss->calling.port= spkt_p->rtp_port;
@@ -400,7 +400,7 @@ void _update_session(struct sip_pkt* spkt_p)
             sip_log("I find the session (callid %s) \n",ss->call_id);
             if (ss->mode == SS_MODE_CALLED && spkt_p->state == SS_ACK)
             {
-                ss->state = spkt_p->state;
+  //              ss->state = spkt_p->state;
                 if(spkt_p->body_sdp)
                 {
                     ss->calling.ip.s_addr = spkt_p->rtp_ip.s_addr;
@@ -410,7 +410,7 @@ void _update_session(struct sip_pkt* spkt_p)
             }
             else if (ss->mode == SS_MODE_CALLED && spkt_p->state == SS_OK)
             {
-                ss->state = spkt_p->state;
+ //               ss->state = spkt_p->state;
                 if(spkt_p->body_sdp)
                 {
                     ss->called.ip.s_addr = spkt_p->rtp_ip.s_addr;
@@ -419,7 +419,7 @@ void _update_session(struct sip_pkt* spkt_p)
             }
             else if  (ss->mode ==SS_MODE_CALLING && spkt_p->state == SS_OK)
             {
-                ss->state = spkt_p->state;
+  //              ss->state = spkt_p->state;
                 if(spkt_p->body_sdp)
                 {
                     ss->called.ip.s_addr = spkt_p->rtp_ip.s_addr;
@@ -454,7 +454,7 @@ void _update_session2(struct sip_pkt* spkt_p)
         {
           
             sip_log("I find the session (callid %s) \n",ss->call_id);
-            ss->state = spkt_p->state;
+//            ss->state = spkt_p->state;
             if(spkt_p->body_sdp)
             {
                 ss->called.ip.s_addr = spkt_p->rtp_ip.s_addr;
@@ -483,7 +483,7 @@ void _close_session(struct sip_pkt* spkt_p)
         if(ss != NULL)
         {
             sip_log("I find the session (callid %s),and close it. \n",ss->call_id);
-            ss->state = spkt_p->state;
+ //           ss->state = spkt_p->state;
             
             close_rtp_sniffer(ss);
         }

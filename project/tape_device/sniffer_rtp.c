@@ -241,7 +241,7 @@ static void sniffer_handle_rtp(u_char * user, const struct pcap_pkthdr * packet_
 	
 	if(0 != check_udp(iph,&udph))	
 		goto error;
-	
+
 	handle_rtp(iph,udph,(void*) user);
 error:
 	return;

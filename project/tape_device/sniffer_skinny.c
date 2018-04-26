@@ -1,9 +1,8 @@
 
 
 
-
-
 #define TCP_PORT_SKINNY 2000 /* Not IANA registered */
+
 #define SSL_PORT_SKINNY 2443 /* IANA assigned to PowerClient Central Storage Facility */
 
 #define BASIC_MSG_TYPE 0x00
@@ -112,7 +111,7 @@ static const value_string message_id[] = {
   { 0x0091, "SpeedDialStatRes" },
   { 0x0092, "LineStatRes" },
   { 0x0093, "ConfigStatRes" },
-  { 0x0094, "TimeDateRes" },---------liudan
+  { 0x0094, "TimeDateRes" },//---------liudan 取得时间。
   { 0x0095, "StartSessionTransmission" },
   { 0x0096, "StopSessionTransmission" },
   { 0x0097, "ButtonTemplateRes" },
@@ -214,6 +213,7 @@ static const value_string message_id[] = {
   { 0x8101, "SPCPRegisterTokenReject" },
   {0     , NULL}
 };
+#if 0
 static value_string_ext message_id_ext = VALUE_STRING_EXT_INIT(message_id);
 
 /* Declare Enums and Defines */
@@ -1672,33 +1672,11 @@ static const value_string RecordingStatus[] = {
   { 0x00001, "_ON" },
   { 0x00000, NULL }
 };
-static value_string_ext RecordingStatus_ext = VALUE_STRING_EXT_INIT(RecordingStatus);
+
+#endif
 
 
-
-static dissector_handle_t xml_handle;
-
-/* Initialize the subtree pointers */
-static gint ett_skinny          = -1;
-static gint ett_skinny_tree     = -1;
-
-/* preference globals */
-static gboolean global_skinny_desegment = TRUE;
-
-/* tap register id */
-static int skinny_tap = -1;
-
-/* skinny protocol tap info */
-#define MAX_SKINNY_MESSAGES_IN_PACKET 10
-static skinny_info_t pi_arr[MAX_SKINNY_MESSAGES_IN_PACKET];
-static int pi_current = 0;
-static skinny_info_t *si;
-
-dissector_handle_t skinny_handle;
-
-
-
-typedef void (*message_handler) (ptvcursor_t * cursor, packet_info *pinfo, skinny_conv_info_t * skinny_conv);
+typedef void (*message_handler) (skinny_opcode_map_t* skinny_op, u8* msg,u32 len);
 
 typedef struct _skinny_opcode_map_t {
   guint32 opcode;
@@ -1787,7 +1765,8 @@ static const skinny_opcode_map_t skinny_opcode_map[] = {
   {0x0091, handle_default_function                 , SKINNY_MSGTYPE_RESPONSE , "SpeedDialStatResMessage"},
   {0x0092, handle_default_function                      , SKINNY_MSGTYPE_RESPONSE , "LineStatResMessage"},
   {0x0093, handle_default_function                    , SKINNY_MSGTYPE_RESPONSE , "ConfigStatResMessage"},
-  {0x0094, handle_default_function                      , SKINNY_MSGTYPE_RESPONSE , "TimeDateResMessage"},//---liudan
+  //从TimeDateResMessage里取时间。
+  {0x0094, handle_default_TimeDate                      , SKINNY_MSGTYPE_RESPONSE , "TimeDateResMessage"},//---liudan
   {0x0095, handle_default_function         , SKINNY_MSGTYPE_EVENT    , "StartSessionTransmissionMessage"},
   {0x0096, handle_default_function          , SKINNY_MSGTYPE_EVENT    , "StopSessionTransmissionMessage"},
   {0x0097, handle_default_function                , SKINNY_MSGTYPE_RESPONSE , "ButtonTemplateResMessage"},
@@ -1821,7 +1800,7 @@ static const skinny_opcode_map_t skinny_opcode_map[] = {
   {0x011a, handle_default_function                                           , SKINNY_MSGTYPE_RESPONSE , "RegisterTokenAck"},
   {0x011b, handle_default_function                     , SKINNY_MSGTYPE_RESPONSE , "RegisterTokenReject"},
   {0x011c, handle_default_function       , SKINNY_MSGTYPE_EVENT    , "StartMediaFailureDetectionMessage"},
-  {0x011d, handle_default_function                     , SKINNY_MSGTYPE_EVENT    , "DialedNumberMessage"},
+  {0x011d, handle_DialedNumber                     , SKINNY_MSGTYPE_EVENT    , "DialedNumberMessage"}, //提到用户输入的号码。
   {0x011e, handle_default_function                 , SKINNY_MSGTYPE_EVENT    , "UserToDeviceDataMessage"},
   {0x011f, handle_default_function                   , SKINNY_MSGTYPE_RESPONSE , "FeatureStatResMessage"},
   {0x0120, handle_default_function                 , SKINNY_MSGTYPE_EVENT    , "DisplayPriNotifyMessage"},
@@ -1891,31 +1870,209 @@ static const skinny_opcode_map_t skinny_opcode_map[] = {
 
 
 /*******************************************************************************************************/
-	
-#define skinny_log(fmt,...)  \
-    _logger_file("/tmp/hzivy-skinny.log",__func__,__LINE__,fmt,##__VA_ARGS__);  
 
 
-#define skinny_log_err(fmt,...)  \
-						skinny_log("ERROR|"fmt,##__VA_ARGS__); 
+/******************************************
+*
+* 本文件的程序主要是用来抓 SKINNY 报文。
+* 本程序抓sip的报文，并解析出sip里的call-id,以此作为key,把pkt的过程放到
+一个session中，session放到一个全局的链表中。
+跟踪每个session的从生到死的过程。最后free session.
+
+* 
+*******************************************/
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <pcap.h>
+#include <errno.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include "log.h"
+
+#include <pthread.h>    
+
+#include "sniffer_lib.h"  
 
 
-struct sip_pkt
-{
-	int from_server;// 1  yes (this is respo pkt), 0 no. 0 is to server. this is request pkt.
-	char* line;
-	char*  sip_msg_body;
+#include "config.h"
+#include "linux-utils.h"
+#include "wake_utils.h"
+#include "sniffer_sip.h"
+#include "str_lib.h"
+#include "upload.h"
 
-	struct sip_msg_header msg_hdr;
-	u8 body_sdp;
 
-	u16    rtp_port;//不知道是src dest.
-	struct in_addr rtp_ip;
-	//struct session_info* ss;
+extern struct config_st g_config;
 
-	enum session_state state;
+
+
+struct skinny_frame_info {
+	u32 callRef;//callid;
 };
 
+
+#include "sniffer_skinny.h"
+
+
+#define CW_LOAD_U8(ucValue, pucBuf)((ucValue) = (*(pucBuf)++));
+
+#define CW_LOAD_U16(usValue, pucBuf)\
+{\
+    usValue  = (USHORT) ((*(pucBuf)++) << 8);\
+    usValue |= (USHORT) ((*(pucBuf)++));\
+}
+
+#define CW_LOAD_U32(uiValue, pucBuf)\
+{\
+    uiValue  = (UINT) ((*(pucBuf)++) << 24);\
+    uiValue |= (UINT) ((*(pucBuf)++) << 16);\
+    uiValue |= (UINT) ((*(pucBuf)++) << 8);\
+    uiValue |= (UINT) ((*(pucBuf)++));\
+}
+/*mib*/
+#define CW_LOAD_U64(uiValue, pucBuf)\
+{\
+    uiValue  = (ULONGLONG) ((*(pucBuf)++) << 56);\
+    uiValue |= (ULONGLONG) ((*(pucBuf)++) << 48);\
+    uiValue |= (ULONGLONG) ((*(pucBuf)++) << 40);\
+    uiValue |= (ULONGLONG) ((*(pucBuf)++) << 32);\
+    uiValue |= (ULONGLONG) ((*(pucBuf)++) << 24);\
+    uiValue |= (ULONGLONG) ((*(pucBuf)++) << 16);\
+    uiValue |= (ULONGLONG) ((*(pucBuf)++) << 8);\
+    uiValue |= (ULONGLONG) ((*(pucBuf)++));\
+}
+
+#define CW_LOAD_STR(pucDest, pucBuf, ulLen)\
+{\
+    memcpy((pucDest), (pucBuf), (ulLen));\
+    ((pucBuf) += (ulLen));\
+}
+
+struct session_info* skinny_get_session(char* callid)
+{
+	struct session_info* ss=si_find_session(callid);
+	if(ss == NULL)
+	{
+		ss = si_new_session();
+		if(ss ==NULL)
+			return NULL;
+		ss->call_id = strdup(callid);
+		if(ss->call_id == NULL){
+			si_del_session(ss);
+			return NULL;
+		}
+	}
+	return ss;
+}
+void handle_default_TimeDate(skinny_opcode_map_t* skinny_op, u8* msg,u32 len)
+{
+
+	
+	struct session_info* ss = skinny_get_session();
+}
+static  struct session_info* skinny_get_session_by_callRef(u32 callReference)
+{
+	
+	struct session_info* ss;
+	char callid[64]={0};
+	
+	sprintf(callid,"%d",callReference);
+	ss = skinny_get_session(callid);
+	if(ss ==  NULL)
+	{
+		skinny_log_err("no this callid %s session\n",callid);
+	}
+	return ss;
+}
+void handle_DialedNumber(skinny_opcode_map_t* skinny_op, u8* msg,u32 len)
+{
+	u8* p = msg;
+	struct session_info* ss;
+	char dailed_num[26];
+	u32 line_instance=0;
+	
+	u32 callReference=0;
+	char callid[64]={0};
+	CW_LOAD_STR(dailed_num,p,25);
+	
+	CW_LOAD_U32(line_instance,p);
+	CW_LOAD_U32(callReference,p);
+	sprintf(callid,"%d",callReference);
+	ss = skinny_get_session(callid);
+	
+	if(ss ==  NULL)
+	{
+		skinny_log_err("no this callid %s session\n",callid);
+	}
+	
+}
+
+void handle_default_function (skinny_opcode_map_t* skinny_op, u8* msg,u32 len,skinny_info)
+{
+	skinny_log("%s and msg len %d  \n",skinny_op->name,len);
+	
+}
+
+#define CW_IsMsgOutBound(pucCurPos, pucEndPos, usLen) ((pucCurPos + usLen) > pucEndPos)
+
+int handler_skinny_elements(u8* msg,int msg_size)
+{
+	u32 len;
+	u32 hdr_opcode;
+	u32 hdr_ver;
+	u8* p = msg;
+	int i;
+	skinny_opcode_map_t* opcode_entry;
+	while(p+8 < msg+msg_size)
+	{
+		len = htonl(*((u32*)p));
+		p+=4;
+		hdr_ver = htonl(*((u32*)p));
+		p+=4;
+		hdr_opcode = htonl(*((u32*)p));
+		p+=4;
+		if(p+len <msg+msg_size)
+		{
+			for (i = 0; i < sizeof(skinny_opcode_map)/sizeof(skinny_opcode_map_t) ; i++) 
+			{
+	    		if (skinny_opcode_map[i].opcode == hdr_opcode) 
+				{
+	     			 opcode_entry = &skinny_opcode_map[i];
+					 opcode_entry->handler(opcode_entry,p,len,skinny_info);
+					 p+=len;
+					 break;
+	    		}
+  			}
+			
+		}
+		else
+			skinny_log_err("opcode %d msg broken!\n",hdr_opcode);
+			
+	}
+}
+void show_tcp_info(struct tcphdr* th )
+{
+	skinny_log("tcp info :\n");
+	
+	skinny_log("tcp info :\n"
+				"source port %u, dest port %u\n 
+				Sequence Number %u,Acknowledgemtn Number %u\n "
+				"head len %d byte (%d)\n"
+				"flags %s %s %s %s %s %s %s %s \n",
+			htons(th->source),htons(th->dest),ntohl(th->seq),          ntohl(th->ack_seq),
+				th->doff*4,th->doff,
+				th->fin?"Finish":"NoFinish",
+				th->syn?"Syn":"NoSyn",
+				th->rst?"Reset":"NoReset",
+				th->psh?"Push":"NoPush",
+				th->ack?"Ack":"NoAck",
+				th->urg?"Urgent":"NoUrgent",
+				th->ece?"ECN-ECHO":"NoECH-ECHO",
+				th->cwr?"Congestion_Window_Reduced":"NoCWR");
+}
 static void sniffer_handle_skinny(u_char * user, const struct pcap_pkthdr * packet_header, const u_char * packet_content)
 {
     int ret = 0;
@@ -1928,18 +2085,29 @@ static void sniffer_handle_skinny(u_char * user, const struct pcap_pkthdr * pack
 	int tcp_len;
 	
 	ret = check_iphdr(phdr,packet_content,&iph);
-	if(ret != 0)
+	if(ret != 0){
+		
+		skinny_log_err("check_iphdr error\n");
 		goto error;
-	
-	if(0 != check_tcp(iph,&th))	
+    }
+	if(0 != check_tcp(iph,&th))	{
+		
+		skinny_log_err("check_tcp error\n");
 		goto error;
+	}
 	
     //send_sip_pkt(iph,udph);/* 把sip报文转给upload一份。 */
 
 	tcp_payload = (u8*)th+(th->doff * 4);
 	tcp_len = ntohs(iph->tot_len)- iph->ihl*4;
 	tcp_payload_len = tcp_len - (th->doff * 4);
-	handler_skinny_element(tcp_payload,tcp_payload_len);
+	show_tcp_info(th);
+	if(tcp_payload_len == 0)
+	{
+		skinny_log("this frame no tcp payload\n");
+		return;
+	}
+	handler_skinny_elements(tcp_payload,tcp_payload_len);
 	
 error:
 	return;

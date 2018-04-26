@@ -38,14 +38,14 @@ void __local_time_str(char* time_str,int len)
 
 	time_t a;
 	struct tm* t;
-	//char time_str[128];
+	
 	time(&a);
 	t = localtime(&a);
 	strftime(time_str,len,"%Y-%m-%d_%H-%M-%S",t);
 //printf("%s	\n",time_str);
 
-
 }
+
 void _logger_file(const char* file_name, const char* func, int line, const char* fmt,...)
 {
     int fd;

@@ -29,6 +29,18 @@ struct sip_msg_header
 	int content_length;
 	
 };
+enum sip_session_state
+{
+    SS_ERROR = 0,
+    SS_INVATE = 1,
+    SS_TRYING = 2,
+    SS_RINGING = 3,
+    SS_OK,
+    SS_ACK,
+    SS_BYE,
+
+    
+};
 
 enum REQ_TYPE
 {
@@ -67,7 +79,7 @@ struct sip_pkt
     struct in_addr rtp_ip;
 	//struct session_info* ss;
 	
-    enum session_state state;
+    enum sip_session_state state;
 };
 
 
