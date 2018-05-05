@@ -74,6 +74,7 @@ struct session_info //与信令协议 sip ,skinny无关。是更高一级的应�
 	time_t hangup_time;//
     //enum session_state state; /*从报文中同步过来。*/
     char* call_id; 
+   // u32   callReference; //for skinny;
     /* 如何判断calling? 如何说INVATE的IP层srcIP == sdp.connection IP.  this ip 就
         是calling. */
     struct  person calling;

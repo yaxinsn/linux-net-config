@@ -1956,6 +1956,8 @@ struct session_info* skinny_get_session(char* callid)
 	struct session_info* ss=si_find_session(callid);
 	if(ss == NULL)
 	{
+	    return NULL;
+	    #if 0
 		ss = si_new_session();
 		if(ss ==NULL)
 			return NULL;
@@ -1964,14 +1966,9 @@ struct session_info* skinny_get_session(char* callid)
 			si_del_session(ss);
 			return NULL;
 		}
+		#endif
 	}
 	return ss;
-}
-void handle_default_TimeDate(skinny_opcode_map_t* skinny_op, u8* msg,u32 len)
-{
-
-	
-	struct session_info* ss = skinny_get_session();
 }
 static  struct session_info* skinny_get_session_by_callRef(u32 callReference)
 {
@@ -1987,7 +1984,232 @@ static  struct session_info* skinny_get_session_by_callRef(u32 callReference)
 	}
 	return ss;
 }
-void handle_DialedNumber(skinny_opcode_map_t* skinny_op, u8* msg,u32 len)
+/*------------------------------------------------*/
+typedef struct qualifierOut_st
+{
+    u32 percedenceValue;
+    u32 ssValue;
+    u32 maxFramesPerpacket;
+    u32 any_compressionType;
+}qualifierOut;
+/* all session 's end is clearPromptStatus 2018-5-6 */
+void handle_clear_prompt_status(skinny_opcode_map_t* skinny_op, 
+                    u8* msg,u32 len,
+                    skinny_info_t* skinny_info)
+{
+    u8* p = msg;
+    u32 lineInstance;
+    u32 callRefer;
+    
+    CW_LOAD_U32(lineInstance,p);
+    CW_LOAD_U32(callRefer,p);
+    struct session_info* ss;
+    ss = skinny_get_session_by_callRef(callRefer);
+    if(ss)
+        close_rtp_sniffer(ss);
+    else
+        skinny_log(" Not find this callrefer %d  \n",callRefer);
+}
+#if 0
+void handle_stop_media_transmission(skinny_opcode_map_t* skinny_op, 
+                    u8* msg,u32 len,
+                    skinny_info_t* skinny_info)
+{
+    u8* p = msg;
+    u32 conferenceID;
+    u32 passThruPartyID;
+    u32 callRefer;
+    u32 portHandlingFlag;
+    
+    CW_LOAD_U32(conferenceID,p);
+    CW_LOAD_U32(passThruPartyID,p);
+    CW_LOAD_U32(callRefer,p);
+    CW_LOAD_U32(portHandlingFlag,p);
+
+    struct session_info* ss;
+    ss = skinny_get_session_by_callRef(callRefer);
+    if(ss)
+        close_rtp_sniffer(ss);
+    else
+        skinny_log(" Not find this callrefer %d  \n",callRefer);
+}
+
+#endif
+
+/* center nofity peer's ip+port to csico phone */
+
+void handle_start_media_transmission(skinny_opcode_map_t* skinny_op, u8* msg,u32 len,
+                    skinny_info_t* skinny_info)
+{
+    u8* p = msg;
+    u32 conferenceID;
+    u32 status;
+    u32 ipv4orv6;
+    u32 remoteIpv4Address;
+    u32 remotePort;
+    u32 millisecondPaccketSize;
+    u32 passThruPartyID;
+    u32 compressionType;
+    u32 callRefer;
+    qualifierOut qualifier_out;
+    u32 callRefer;
+    
+    struct session_info* ss;
+    
+    CW_LOAD_U32(conferenceID,p);
+    CW_LOAD_U32(passThruPartyID,p);
+    CW_LOAD_U32(ipv4orv6,p);
+    CW_LOAD_U32(remoteIpv4Address,p);
+    
+    CW_LOAD_U32(remotePort,p);
+    CW_LOAD_U32(millisecondPaccketSize,p);
+    
+    CW_LOAD_U32(compressionType,p);
+
+    CW_LOAD_U32(qualifier_out.percedenceValue,p);
+    CW_LOAD_U32(qualifier_out.ssValue,p);
+    CW_LOAD_U32(qualifier_out.maxFramesPerpacket,p);
+    CW_LOAD_U32(qualifier_out.any_compressionType,p);
+    
+    CW_LOAD_U32(callRefer,p);
+
+    	ss = skinny_get_session_by_callRef(callRefer);
+	if(ss)
+	{
+	    if(ss->mode == SS_MODE_CALLING){
+	        ss->called.ip.s_addr = remoteIpv4Address;
+	        ss->called.port = htonl(remotePort);
+	    }
+	    else
+	    {
+	        ss->calling.ip.s_addr = remoteIpv4Address;
+	        ss->calling.port = htonl(remotePort);
+	    }
+	    ss->rtp_sniffer_tid = setup_rtp_sniffer(ss);
+	}
+	
+}
+
+/* Ë¼¿Æ»°»ú¸æËßcenter ×Ô¼ºµÄip+port. */
+void handle_open_receive_channel_ack(skinny_opcode_map_t* skinny_op, u8* msg,u32 len,
+                    skinny_info_t* skinny_info)
+{
+    u8* p = msg;
+    u32 openRecvChannelstatus;
+    u32 ipv4orv6;
+    u32 ipv4Address;
+    u32 Port;
+    u32 passThruPartyID;
+    u32 callRefer;
+    struct session_info* ss;
+    CW_LOAD_U32(openRecvChannelstatus,p);
+    CW_LOAD_U32(ipv4orv6,p);
+    CW_LOAD_U32(ipv4Address,p);
+    CW_LOAD_U32(Port,p);
+    CW_LOAD_U32(passThruPartyID,p);
+    CW_LOAD_U32(callRefer,p);
+    
+	ss = skinny_get_session_by_callRef(callRefer);
+	if(ss)
+	{
+	    if(ss->mode == SS_MODE_CALLING){
+	        ss->calling.ip.s_addr = ipv4Address;
+	        ss->calling.port = htonl(Port);
+	    }
+	    else
+	    {
+	        
+	        ss->called.ip.s_addr = ipv4Address;
+	        ss->called.port = htonl(Port);
+	    }
+	}
+    
+}
+#if 0
+/* get media_payload  souceip, source port ipaddrType (v4 or v6) */
+void handle_open_receive_channel(skinny_opcode_map_t* skinny_op, u8* msg,u32 len,
+                    skinny_info_t* skinny_info)
+{
+    u8* p = msg;
+    u32 conference_id,passthruPartyID,millisecond_packet_size,compression_type;
+    u32 qualifer_in[2];
+    u32 call_refer;
+    char mRxMediaEncryptionKeyInfo[48];
+    u32 streamPassThroughID,associatedStreadID,RFC2833PayloadType,dtmfType,mixingMode,partyDirection;
+    u32 ipv4or6,sourceIpAddr,sourcePortNumber;
+    CW_LOAD_U32(conference_id,p);
+    CW_LOAD_U32(passthruPartyID,p);
+    CW_LOAD_U32(millisecond_packet_size,p);
+    CW_LOAD_U32(compression_type,p);
+    if(compression_type == 6) 
+        skinny_log(" Media_payload_g722_64k \n");
+
+    
+    CW_LOAD_U32(qualifer_in[0],p);
+    CW_LOAD_U32(qualifer_in[1],p);
+    CW_LOAD_U32(call_refer,p);
+    CW_LOAD_STR(mRxMediaEncryptionKeyInfo,p,48);
+    
+    CW_LOAD_U32(streamPassThroughID,p);
+    CW_LOAD_U32(associatedStreadID,p);
+    CW_LOAD_U32(RFC2833PayloadType,p);
+    CW_LOAD_U32(dtmfType,p);
+    
+    CW_LOAD_U32(mixingMode,p);
+    CW_LOAD_U32(partyDirection,p);
+    CW_LOAD_U32(ipv4or6,p);
+    CW_LOAD_U32(sourceIpAddr,p);
+    CW_LOAD_U32(sourcePortNumber,p);
+    
+    
+    
+}
+#endif
+void handle_default_TimeDate(skinny_opcode_map_t* skinny_op, u8* msg,u32 len,
+                    skinny_info_t* skinny_info)
+{
+
+	struct tm t;
+	int wMilliseconds;
+	time_t system_time;
+	u8* p = msg;
+	
+	struct session_info* ss = skinny_get_session_by_callRef(skinny_info->callid);
+	if(ss)
+	{
+	    memset(&t,0,sizeof(struct tm));
+	    CW_LOAD_U32(t.tm_year,p);
+	    CW_LOAD_U32(t.tm_mon,p);
+	    CW_LOAD_U32(t.tm_wday,p);
+	    CW_LOAD_U32(t.tm_mday,p);
+	    CW_LOAD_U32(t.tm_hour,p);
+	    CW_LOAD_U32(t.tm_min,p);
+	    CW_LOAD_U32(t.tm_sec,p);
+	    CW_LOAD_U32(wMilliseconds,p);
+	    CW_LOAD_U32(wMilliseconds,p);
+	    CW_LOAD_U32(system_time,p);
+	    skinny_log("time : %d-%d-%d, %d:%d:%d\n",
+	    t.tm_year,t.tm_mon,t.tm_mday,
+	        t.tm_hour,t.tm_min,t.tm_sec);
+	    ss->ring_time.tm_year = t.tm_year - 1900;
+	    ss->ring_time.tm_mon = t.tm_mon - 1;
+	    ss->ring_time.tm_mday = t.tm_mday;
+	    ss->ring_time.tm_wday = t.tm_wday;
+	    ss->ring_time.tm_hour = t.tm_hour;
+	    ss->ring_time.tm_min = t.tm_min;
+	    ss->ring_time.tm_sec = t.tm_sec;
+	    
+	    
+	}
+	else
+	{
+		skinny_log_err("no this callid %s session\n",skinny_info->callid);
+	    
+	}
+}
+
+void handle_DialedNumber(skinny_opcode_map_t* skinny_op, u8* msg,u32 len,
+                            skinny_info_t* skinny_info)
 {
 	u8* p = msg;
 	struct session_info* ss;
@@ -2001,16 +2223,31 @@ void handle_DialedNumber(skinny_opcode_map_t* skinny_op, u8* msg,u32 len)
 	CW_LOAD_U32(line_instance,p);
 	CW_LOAD_U32(callReference,p);
 	sprintf(callid,"%d",callReference);
-	ss = skinny_get_session(callid);
+//	ss = skinny_get_session(callid);
 	
+    ss = si_new_session();
+    if(ss ==NULL)
+        return NULL;
+    ss->call_id = strdup(callid);
+    if(ss->call_id == NULL){
+        si_del_session(ss);
+        return NULL;
+    }
 	if(ss ==  NULL)
 	{
 		skinny_log_err("no this callid %s session\n",callid);
+		return;
 	}
+	ss->mode = SS_MODE_CALLING;
+	skinny_log("dailed number %s \n",dailed_num);
 	
+	return;
 }
 
-void handle_default_function (skinny_opcode_map_t* skinny_op, u8* msg,u32 len,skinny_info)
+
+
+void handle_default_function (skinny_opcode_map_t* skinny_op, u8* msg,u32 len,
+    skinny_info_t* skinny_info)
 {
 	skinny_log("%s and msg len %d  \n",skinny_op->name,len);
 	
@@ -2026,6 +2263,10 @@ int handler_skinny_elements(u8* msg,int msg_size)
 	u8* p = msg;
 	int i;
 	skinny_opcode_map_t* opcode_entry;
+
+	skinny_info_t skinny_info;
+	memset(&skinny_info,0,sizefo(skinny_info_t));
+	
 	while(p+8 < msg+msg_size)
 	{
 		len = htonl(*((u32*)p));
@@ -2041,7 +2282,7 @@ int handler_skinny_elements(u8* msg,int msg_size)
 	    		if (skinny_opcode_map[i].opcode == hdr_opcode) 
 				{
 	     			 opcode_entry = &skinny_opcode_map[i];
-					 opcode_entry->handler(opcode_entry,p,len,skinny_info);
+					 opcode_entry->handler(opcode_entry,p,len,&skinny_info);
 					 p+=len;
 					 break;
 	    		}

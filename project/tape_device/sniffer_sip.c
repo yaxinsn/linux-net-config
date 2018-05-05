@@ -134,7 +134,8 @@ int parse_sdp_connection_info(char* p, struct sip_pkt* sp)
         return -1;
     media_ele = parse_tokens(p,&count);
     if(media_ele != NULL && count >= 3){
-        sip_log("find the ip info from conection of sdp : %s %s %s \n",media_ele[0],media_ele[1],media_ele[2]);
+        sip_log("find the ip info from conection of sdp : %s %s %s \n",
+        media_ele[0],media_ele[1],media_ele[2]);
        inet_aton(media_ele[2], &sp->rtp_ip );
     }
     FREE(media_ele);
