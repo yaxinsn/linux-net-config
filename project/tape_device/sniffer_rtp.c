@@ -236,12 +236,15 @@ static void sniffer_handle_rtp(u_char * user, const struct pcap_pkthdr * packet_
 	struct udphdr* udph = NULL;
 	
 	ret = check_iphdr(phdr,packet_content,&iph);
-	if(ret != 0)
+	if(ret != 0){
+	    log_err("ip header error\n");
 		goto error;
+    }
 	
-	if(0 != check_udp(iph,&udph))	
+	if(0 != check_udp(iph,&udph))	{
+	    log_err("udp error\n");
 		goto error;
-
+    }
 	handle_rtp(iph,udph,(void*) user);
 error:
 	return;
@@ -334,7 +337,7 @@ pthread_t setup_rtp_sniffer(struct session_info* ss)
     memcpy(&rs->called,&ss->called,sizeof(struct  person));
     memcpy(&rs->calling,&ss->calling,sizeof(struct  person));
     rs->pd = pd;
-    t += sprintf(file_name,"./%s_to_",inet_ntoa(ss->calling.ip));
+    t += sprintf(file_name,"/tmp/%s_to_",inet_ntoa(ss->calling.ip));
     t += sprintf(file_name+t,"%s_",inet_ntoa(ss->called.ip));
    t += sprintf(file_name+t,"%lu",a);
     
@@ -344,12 +347,12 @@ pthread_t setup_rtp_sniffer(struct session_info* ss)
 
 
     t=0;
-    t += sprintf(file_name2,"./%s_",inet_ntoa(ss->called.ip));
+    t += sprintf(file_name2,"/tmp/%s_",inet_ntoa(ss->called.ip));
     t += sprintf(file_name2+t,"%lu",a);
     rs->save_called_fp = fopen(file_name2,"w");
     
     t=0;
-    t += sprintf(file_name3,"./%s_",inet_ntoa(ss->calling.ip));
+    t += sprintf(file_name3,"/tmp/%s_",inet_ntoa(ss->calling.ip));
     t += sprintf(file_name3+t,"%lu",a);
     rs->save_calling_fp = fopen(file_name3,"w");
     

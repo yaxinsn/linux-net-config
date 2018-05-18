@@ -48,6 +48,7 @@ int main(int argc,char* argv[])
 {
 	//pthread_t uploader;
 	pthread_t sniffer;
+	pthread_t sniffer_skinny;
 	
 	log("test get config and upload \n");
 	main_get_config();
@@ -63,9 +64,11 @@ int main(int argc,char* argv[])
 	}
 #endif	
     sniffer = sniffer_sip_start();
-	
+
+	sniffer_skinny = sniffer_skinny_start();
     printf("%s:%d \n",__func__,__LINE__);
 	pthread_join(sniffer,NULL);
+	pthread_join(sniffer_skinny,NULL);
 	//pthread_join(uploader,NULL);
     printf("%s:%d \n",__func__,__LINE__);
 	return 0;

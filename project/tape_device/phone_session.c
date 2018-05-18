@@ -58,16 +58,20 @@ struct session_info* si_find_session(char* call_id)
     struct session_info* n;
     struct list_head* si_head;
     si_head = &sip_ctx.si_head;
-    sip_log("debug callid %s \n",call_id);
+    log("debug callid %s \n",call_id);
     
     list_for_each_entry_safe(p,n,si_head,node)
     {
 
         if(!strcmp(call_id,p->call_id))
         {
+        
+    log("debug callid %s ,and find it.\n",call_id);
             return p;
         }
     }
+    
+    log("debug callid %s ,no find it.\n",call_id);
     return NULL;
 }
 

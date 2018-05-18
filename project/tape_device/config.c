@@ -306,6 +306,7 @@ int get_config(struct config_st* c)
 	get_config_pwd(j_cfg,c);
 	get_config_tape(j_cfg,c);
 	get_config_callcenter(j_cfg,c);
+	get_config_callcenter_skinny(j_cfg,c);
 	get_config_heart_ser(j_cfg,c);
 	get_config_hostip(j_cfg,c);
 	json_object_put(j_cfg);

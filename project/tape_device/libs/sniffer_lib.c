@@ -203,9 +203,10 @@ int check_udp( struct iphdr* iph,struct udphdr** udph_p)
 	{
 		udph = (struct udphdr*)((u8*)iph + iph->ihl*4);
 		*udph_p = udph;
-		if(udph->len+8 > ip_payload_len)
+		if(htons(udph->len) > ip_payload_len){
+		    log_err(" udph->len %d ip_payload_len %d \n",htons(udph->len),ip_payload_len);
 			return -1;
-		
+		}
 		return 0;
 	}
 	return -1;
