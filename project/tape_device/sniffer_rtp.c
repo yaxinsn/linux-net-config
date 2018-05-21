@@ -125,14 +125,62 @@ static void session_down()
 #endif
 }
 #endif
+#if 0
+struct iphdr {
+#if defined(__LITTLE_ENDIAN_BITFIELD)
+        __u8    ihl:4,
+                version:4;
+#elif defined (__BIG_ENDIAN_BITFIELD)
+        __u8    version:4,
+                ihl:4;
+#else
+#error  "Please fix <asm/byteorder.h>"
+#endif
+        __u8    tos;
+        __be16  tot_len;
+        __be16  id;
+        __be16  frag_off;
+        __u8    ttl;
+        __u8    protocol;
+        __sum16 check;
+        __be32  saddr;
+        __be32  daddr;
+        /*The options start here. */
+};
+#endif
+#if defined(__LITTLE_ENDIAN_BITFIELD)
 struct rttphdr{
-    u8 version;
-    u8 type;
+    
+    u8 source_id_count:4 ,
+       extension:1 ,
+       padding:1,
+       version:2;
+    u8 type:7,
+       marker:1;
     u16 sequence_number;
-    u16 extended_sequence_number;
     u32 timestamp;
     u32 synchronization_source_id;
 }__attribute__  ((__packed__));
+
+#elif defined (__BIG_ENDIAN_BITFIELD)
+struct rttphdr{
+    u8 version:2,
+       padding:1,
+       extension:1,
+       source_id_count:4;
+       
+    u8 marker:1,
+       type:7;
+    u16 sequence_number;
+    u32 timestamp;
+    u32 synchronization_source_id;
+}__attribute__  ((__packed__));
+
+#else
+#error  "Please fix <asm/byteorder.h>"
+#endif
+
+
 static int save_rtp_frame(FILE* fp,void* buffer,int len)
 {
     if(fp)
