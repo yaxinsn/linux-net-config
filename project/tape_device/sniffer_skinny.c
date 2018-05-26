@@ -243,6 +243,7 @@ static const value_string message_id[] = {
 typedef struct skinny_packet_info
 {
     u32 callid;
+    u32 callstate;
     
 }skinny_info_t;
 
@@ -399,12 +400,15 @@ void handle_clear_prompt_status(skinny_opcode_map_t* skinny_op,
     CW_LOAD_U32(callRefer,p);
     skinny_log("enter\n");
     skinny_info->callid = callRefer;
+    return;
+    #if 0
     struct session_info* ss;
     ss = skinny_get_session_by_callRef(callRefer);
     if(ss)
         close_rtp_sniffer(ss);
     else
         skinny_log(" Not find this callrefer %d  \n",callRefer);
+    #endif;
 }
 #if 0
 void handle_stop_media_transmission(skinny_opcode_map_t* skinny_op, 
@@ -574,52 +578,142 @@ void handle_open_receive_channel(skinny_opcode_map_t* skinny_op, u8* msg,u32 len
     
 }
 #endif
+check_all_session_is_callstate_onhook(struct tm t)
+{
+    extern struct session_ctx_t sip_ctx;
+    struct session_info* p;
+    struct session_info* n;
+    struct list_head* si_head;
+    si_head = &sip_ctx.si_head;
+    
+    list_for_each_entry_safe(p,n,si_head,node)
+    {
+
+        if(p->skinny_state == 2)
+        {
+            skinny_log("this callid %s session is onhook, I will close it.\n",p->call_id);
+            
+    	    memcpy(&p->ring_time,&t,sizeof(t));
+    	    close_rtp_sniffer(p);
+        }
+    }
+    
+}
+
 void handle_default_TimeDate(skinny_opcode_map_t* skinny_op, u8* msg,u32 len,
                     skinny_info_t* skinny_info)
 {
 
 	struct tm t;
+	char ring_time[256]={0};
 	int wMilliseconds;
 	time_t system_time;
 	u8* p = msg;
+	struct session_info* ss ;
 	
     skinny_log("enter\n");
-	struct session_info* ss = skinny_get_session_by_callRef(skinny_info->callid);
-	if(ss)
-	{
-	    memset(&t,0,sizeof(struct tm));
-	    CW_LOAD_U32(t.tm_year,p);
-	    CW_LOAD_U32(t.tm_mon,p);
-	    CW_LOAD_U32(t.tm_wday,p);
-	    CW_LOAD_U32(t.tm_mday,p);
-	    CW_LOAD_U32(t.tm_hour,p);
-	    CW_LOAD_U32(t.tm_min,p);
-	    CW_LOAD_U32(t.tm_sec,p);
-	    CW_LOAD_U32(wMilliseconds,p);
-	    CW_LOAD_U32(wMilliseconds,p);
-	    CW_LOAD_U32(system_time,p);
-	    skinny_log("time : %d-%d-%d, %d:%d:%d\n",
-	    t.tm_year,t.tm_mon,t.tm_mday,
-	        t.tm_hour,t.tm_min,t.tm_sec);
-	    ss->ring_time.tm_year = t.tm_year - 1900;
-	    ss->ring_time.tm_mon = t.tm_mon - 1;
-	    ss->ring_time.tm_mday = t.tm_mday;
-	    ss->ring_time.tm_wday = t.tm_wday;
-	    ss->ring_time.tm_hour = t.tm_hour;
-	    ss->ring_time.tm_min = t.tm_min;
-	    ss->ring_time.tm_sec = t.tm_sec;
-	    
-	    
-	}
-	else
-	{
-		skinny_log_err("no this callid %s session\n",skinny_info->callid);
-	    //exit(0);
+    
+   memset(&t,0,sizeof(struct tm));
+   CW_LOAD_U32(t.tm_year,p);
+   CW_LOAD_U32(t.tm_mon,p);
+   CW_LOAD_U32(t.tm_wday,p);
+   CW_LOAD_U32(t.tm_mday,p);
+   CW_LOAD_U32(t.tm_hour,p);
+   CW_LOAD_U32(t.tm_min,p);
+   CW_LOAD_U32(t.tm_sec,p);
+   CW_LOAD_U32(wMilliseconds,p);
+   CW_LOAD_U32(wMilliseconds,p);
+   CW_LOAD_U32(system_time,p);
+   skinny_log("time : %d-%d-%d, %d:%d:%d\n",
+   t.tm_year,t.tm_mon,t.tm_mday,
+       t.tm_hour,t.tm_min,t.tm_sec);
+       
+   t.tm_year = t.tm_year - 1900;
+   t.tm_mon = t.tm_mon - 1;
+   t.tm_mday = t.tm_mday;
+   t.tm_wday = t.tm_wday;
+   t.tm_hour = t.tm_hour;
+   t.tm_min = t.tm_min;
+   t.tm_sec = t.tm_sec;
+   
+   strftime(ring_time,256,"time_%Y-%m-%d_%H-%M-%S",&t);
+       skinny_log("time : %s \n",ring_time);
+               
+    if(skinny_info->callid == 0)
+    {
+        skinny_log("callid is 0\n");
+        check_all_session_is_callstate_onhook(t);
+        return;
+    }
+    else{
+
+    	ss = skinny_get_session_by_callRef(skinny_info->callid);
+    	if(ss)
+    	{
+    	    memcpy(&ss->ring_time,&t,sizeof(t));
+    	    close_rtp_sniffer(ss);
+    	    
+    	}
+    	else
+    	{
+    		skinny_log_err("no this callid %s session\n",skinny_info->callid);
+    	    //exit(0);
+    	}
 	}
 }
+#if 0
+handle_prompt_status_v2(skinny_opcode_map_t* skinny_op, u8* msg,u32 len,
+                            skinny_info_t* skinny_info)
+{
+	u8* p = msg;
+	u32 timeOutValue;
+	u32 lineInstance;
+	u32 callReference;
+	char* prompt_status;
+    int prompt_status_len;
+    int msessag_id_len = 4;
+	
+	struct session_info* ss;
+	
+	char callid[64]={0};
+	
+    skinny_log("enter\n");
+	CW_LOAD_U32(timeOutValue,p);
+	CW_LOAD_U32(lineInstance,p);
+	CW_LOAD_U32(callReference,p);
+
+	prompt_status_len = len - msessag_id_len - 3*4;
+	
+
+}
+#endif
+static const value_string DCallState[] = {
+  { 0x00000, "Idle" },
+  { 0x00001, "OffHook" },
+  { 0x00002, "OnHook" },
+  { 0x00003, "RingOut" },
+  { 0x00004, "RingIn" },
+  { 0x00005, "Connected" },
+  { 0x00006, "Busy" },
+  { 0x00007, "Congestion" },
+  { 0x00008, "Hold" },
+  { 0x00009, "CallWaiting" },
+  { 0x0000a, "CallTransfer" },
+  { 0x0000b, "CallPark" },
+  { 0x0000c, "Proceed" },
+  { 0x0000d, "CallRemoteMultiline" },
+  { 0x0000e, "InvalidNumber" },
+  { 0x0000f, "HoldRevert" },
+  { 0x00010, "Whisper" },
+  { 0x00011, "RemoteHold" },
+  { 0x00012, "MaxState" },
+  { 0x00000, NULL }
+};
+
 void handle_CallState(skinny_opcode_map_t* skinny_op, u8* msg,u32 len,
                             skinny_info_t* skinny_info)
 {
+
     
 	u8* p = msg;
 	u32 callState;
@@ -639,50 +733,48 @@ void handle_CallState(skinny_opcode_map_t* skinny_op, u8* msg,u32 len,
 	
     skinny_info->callid = callReference;
 	sprintf(callid,"%d",callReference);
-    ss = si_new_session();
-    if(ss ==NULL)
-        return NULL;
-    ss->call_id = strdup(callid);
-    if(ss->call_id == NULL){
-        si_del_session(ss);
-        return NULL;
+
+    skinny_log("enter callid %d\n",callid);
+
+    ss=si_find_session(callid);
+    if(ss == NULL)
+    {
+        ss = si_new_session();
+        if(ss ==NULL)
+            return NULL;
+        ss->call_id = strdup(callid);
+        if(ss->call_id == NULL){
+            si_del_session(ss);
+            return NULL;
+        }
     }
+
 	if(ss ==  NULL)
 	{
 		skinny_log_err("no this callid %s session\n",callid);
 		return;
 	}
-	if(callState == 0x4)
+	if(callState == 0x4)//ring in;
 	{
 	
 	    ss->mode = SS_MODE_CALLED;
-	    skinny_log("#########################\n");
-	    
 	    skinny_log(" I am ringin callstate ,so I am called. \n");
 	    
-	    skinny_log("#########################\n");
 	}
-    else if(callState == 0xc)
+    else if(callState == 0xc)//Proceed
     {
 	    ss->mode = SS_MODE_CALLED;
-	    skinny_log("$$$$$$$$$$$$$$$$$$$$$$$$\n");
-	    
 	    skinny_log(" I am process callstate ,so I am calling. callReference %d \n",callReference);
 	    
-	    skinny_log("$$$$$$$$$$$$$$$$$$$$$$$$\n");
         
     }
     else
     {
-	    skinny_log("^^^^^^^^^^^^^^^^\n");
 	    
 	    skinny_log(" I callstate %d . \n",callState);
-	    
-	    skinny_log("^^^^^^^^^\n");
-        
-    
     }
-	
+	skinny_info->callstate = callState;
+	ss->skinny_state = callState;
 }                            
 
 void handle_DialedNumber(skinny_opcode_map_t* skinny_op, u8* msg,u32 len,
@@ -690,7 +782,7 @@ void handle_DialedNumber(skinny_opcode_map_t* skinny_op, u8* msg,u32 len,
 {
 	u8* p = msg;
 	struct session_info* ss;
-	char dailed_num[26];
+	char dailed_num[26]={0};
 	u32 line_instance=0;
 	
 	u32 callReference=0;
@@ -1025,7 +1117,7 @@ static void sniffer_handle_skinny(u_char * user, const struct pcap_pkthdr * pack
 	
 	skinny_log("tcp_payload %p, tcp_payload_len  %d th %p \n",tcp_payload,
 	    tcp_payload_len,th);
-	dump_hex(tcp_payload,tcp_payload_len);
+	//dump_hex(tcp_payload,tcp_payload_len);
 	handler_skinny_elements(tcp_payload,tcp_payload_len);
 	
 error:

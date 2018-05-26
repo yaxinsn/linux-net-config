@@ -254,6 +254,10 @@ int parse_msg_header(char* mh,struct sip_pkt* sp)
 	if(sp->msg_hdr.user_agent == NULL)
         v = __parse_msg_header_str_element(mh,"User-Agent",&sp->msg_hdr.user_agent);
 
+	if(sp->msg_hdr.cseq == NULL)
+        v = __parse_msg_header_str_element(mh,"CSeq",&sp->msg_hdr.cseq);
+
+
 
     v= __find_msg_hdr_key(mh,key,&len);
 	if(v != NULL)
@@ -386,6 +390,62 @@ void _create_session(struct sip_pkt* spkt_p)
 		sip_log_err("ss is not created!\n");
 	}
 }
+void _update_session_for_ok(struct sip_pkt* spkt_p)
+{
+    struct session_info* ss;
+    if(spkt_p->msg_hdr.call_id)
+    {
+       
+        ss = si_find_session(spkt_p->msg_hdr.call_id);
+       
+        if(ss != NULL)
+        {
+        
+            sip_log("I find the session (callid %s) \n",ss->call_id);
+            if (ss->mode == SS_MODE_CALLED && spkt_p->state == SS_ACK)
+            {
+  //              ss->state = spkt_p->state;
+                if(spkt_p->body_sdp)
+                {
+                    ss->calling.ip.s_addr = spkt_p->rtp_ip.s_addr;
+                    ss->calling.port = spkt_p->rtp_port;
+                    ss->rtp_sniffer_tid = setup_rtp_sniffer(ss);
+                }
+            }
+            else if (ss->mode == SS_MODE_CALLED && spkt_p->state == SS_OK)
+            {
+ //               ss->state = spkt_p->state;
+                if(spkt_p->body_sdp)
+                {
+                    ss->called.ip.s_addr = spkt_p->rtp_ip.s_addr;
+                    ss->called.port = spkt_p->rtp_port;
+                }
+            }
+            else if  (ss->mode ==SS_MODE_CALLING && spkt_p->state == SS_OK)
+            {
+  //              ss->state = spkt_p->state;
+                if(spkt_p->body_sdp)
+                {
+                    ss->called.ip.s_addr = spkt_p->rtp_ip.s_addr;
+                    ss->called.port = spkt_p->rtp_port;
+                    ss->rtp_sniffer_tid = setup_rtp_sniffer(ss);
+                }
+            }
+            else
+            {
+                sip_log_err("session (callid %s)  not update any info!\n",spkt_p->msg_hdr.call_id);
+                
+            }
+            
+            
+        }
+        else
+        {
+            
+            sip_log_err("I not find the session (callid %s) \n",spkt_p->msg_hdr.call_id);
+        }
+    }
+}
 
 void _update_session(struct sip_pkt* spkt_p)
 {
@@ -513,7 +573,7 @@ void sync_session(struct sip_pkt* spkt_p)
         _update_session(spkt_p);
         break;
         case SS_OK:
-        _update_session(spkt_p);
+        _update_session_for_ok(spkt_p);
         break;
         case SS_BYE:
         _close_session(spkt_p);

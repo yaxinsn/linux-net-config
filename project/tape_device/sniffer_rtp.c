@@ -31,9 +31,19 @@ struct rtp_session_info
     
     struct  person calling;  //sip msg header From
     struct  person called;   //sip msg header to
-    FILE*   save_all_fp; 
+    //FILE*   save_all_fp; 
+    char calling_name[256];
+    
+    char called_name[256];
     FILE*   save_calling_fp;
     FILE*   save_called_fp;
+    u8     rtp_type;
+
+    time_t start_time_stamp;
+
+    time_t stop_time_stamp;
+    //struct session_info* session;
+    struct tm ring_time; 
 };
 
 
@@ -54,7 +64,8 @@ struct rtp_session_info* _rtp_new_session()
     rs = (struct rtp_session_info*)malloc(sizeof(struct rtp_session_info));
     if ( rs == NULL)
         return NULL;
-    bzero(rs,sizeof(struct rtp_session_info));  
+    bzero(rs,sizeof(struct rtp_session_info)); 
+    rs->rtp_type = 1; ///  1 is reserved;
     pthread_mutex_lock(&rtp_ctx.head_lock);
     list_add(&rs->node,&rtp_ctx.rtp_head);
     pthread_mutex_unlock(&rtp_ctx.head_lock);
@@ -148,6 +159,33 @@ struct iphdr {
         /*The options start here. */
 };
 #endif
+
+enum RTP_TYPE
+{
+    RTP_TYPE_PCMU = 0,//711
+    RTP_TYPE_PCMU_GSM = 3,
+    RTP_TYPE_PCMU_G723,
+    RTP_TYPE_PCMU_G722 = 9,
+    RTP_TYPE_PCMU_G729 = 18,
+    
+};
+
+struct rtp_type_str
+{
+    enum RTP_TYPE type;
+    char* type_str;
+};
+struct rtp_type_str g_rtp_file_perfix[] = 
+{
+    {RTP_TYPE_PCMU,"g711"},
+    {RTP_TYPE_PCMU_GSM,"gsm"},
+    {RTP_TYPE_PCMU_G723,"g723"},
+    {RTP_TYPE_PCMU_G722,"g722"},
+    {RTP_TYPE_PCMU_G729,"g729"},
+};
+
+#define RTP_TYPE_PCMU  0
+
 #if defined(__LITTLE_ENDIAN_BITFIELD)
 struct rttphdr{
     
@@ -187,46 +225,107 @@ static int save_rtp_frame(FILE* fp,void* buffer,int len)
         return fwrite(buffer,len,1,fp);
     return -1;
 }
-static void session_talking(struct iphdr* iph,struct udphdr* udph,struct rtp_session_info* rs)
+static void session_talking(struct iphdr* iph,struct udphdr* udph,
+    struct rtp_session_info* rs)
 {
     u8* rtp_pkt = (u8*)(udph+1);
     int rtp_len = ntohs(udph->len)-8;
-    u8* rttp_payload = NULL;
-   // struct phone_msg* msg;
-    rttp_payload = rtp_pkt+sizeof(struct rttphdr);
+    u8* rtp_payload = NULL;
+    struct rttphdr* rtp_hdr;
+    rtp_hdr = (struct rttphdr*)rtp_pkt;
     
-    log("DEBUG here");
+   // struct phone_msg* msg;
+    rtp_payload = rtp_pkt+sizeof(struct rttphdr);
+    if(rs->rtp_type == 1)
+    {
+        rs->rtp_type = rtp_hdr->type;
+        
+        log("get a rty_type firstly %d \n",rtp_hdr->type);
+    }
+    if(rs->rtp_type != rtp_hdr->type)
+    {
+        log_err("rtp pkt type %d , session rtp type %d\n",rtp_hdr->type,rs->rtp_type);
+        
+    }
     if(iph->saddr == rs->calling.ip.s_addr)
     {
-        save_rtp_frame(rs->save_calling_fp,rttp_payload,rtp_len-sizeof(struct rttphdr));
+        save_rtp_frame(rs->save_calling_fp,rtp_payload,rtp_len-sizeof(struct rttphdr));
     }
 
     if(iph->saddr == rs->called.ip.s_addr)
     {
-        save_rtp_frame(rs->save_called_fp,rttp_payload,rtp_len-sizeof(struct rttphdr));
+        save_rtp_frame(rs->save_called_fp,rtp_payload,rtp_len-sizeof(struct rttphdr));
     }
 
-    save_rtp_frame(rs->save_all_fp,rttp_payload,rtp_len-sizeof(struct rttphdr));
+    //save_rtp_frame(rs->save_all_fp,rttp_payload,rtp_len-sizeof(struct rttphdr));
 }
 
 /****************************************************/
+char* get_rtp_type(u8 type)
+{
+    int i;
+    for(i = 0;i<sizeof(g_rtp_file_perfix)/sizeof(struct rtp_type_str);i++)
+    {
+        if(type == g_rtp_file_perfix[i].type)
+            return g_rtp_file_perfix[i].type_str;
+    }
+    return "NA";
+}
 static void sighandler(int s)
 {
         int retval = 3;
+        char* file_perfix;
         struct rtp_session_info* n;
+        char new_name[300];
+        char ring_time[300];
+        int t=0;
+        u32 duration;
+        char calledip_str[30]={0};
+        char callingip_str[30]={0};
+        
         n = _rtp_find_session(pthread_self());
         if(n)
         {
+        log("I  find rtp session -------n->rtp_typ %d-----\n",n->rtp_type);
+            time(&n->stop_time_stamp);
+            duration = n->stop_time_stamp - n->start_time_stamp;
+            
+                strftime(ring_time,256,"%Y-%m-%d_%H-%M-%S",&n->ring_time);
+                sprintf(calledip_str, "%s",inet_ntoa(n->called.ip));
+                sprintf(callingip_str, "%s",inet_ntoa(n->calling.ip));
+                
+            
             pcap_close(n->pd);
             if(n->save_called_fp)
                 fclose(n->save_called_fp);
             if(n->save_calling_fp)
                 fclose(n->save_calling_fp);
-            if(n->save_all_fp)
-                fclose(n->save_all_fp);
+            file_perfix = get_rtp_type(n->rtp_type);
+
+            
+            memset(new_name,0,sizeof(new_name));
+            
+            sprintf(new_name,"/tmp/to_%s_close_time_%s_duration_%d.%s",
+                calledip_str,ring_time,duration, file_perfix);
+                
+            rename(n->called_name,new_name); 
+            
+            memset(new_name,0,sizeof(new_name));
+            
+            sprintf(new_name,"/tmp/to_%s_close_time_%s_duration_%d.%s",
+                callingip_str,ring_time,duration, file_perfix);
+
+            rename(n->calling_name,new_name);
+           // if(n->save_all_fp)
+           //     fclose(n->save_all_fp);
+           
             _rtp_del_session(n);
-        }    
-        log(" %ul thread quit \n", (unsigned long)pthread_self());
+        }
+        else
+        {
+            log_err("not find rtp session \n");
+        }
+        log(" %u thread quit \n", (unsigned long)pthread_self());
         pthread_exit(&retval);
         
 }
@@ -254,11 +353,22 @@ void close_rtp_sniffer(struct session_info* ss)
 {
 
     //session_down();
+    
+    //time(&ss->stop_time_stamp);
+    struct rtp_session_info* n;
     if(ss->rtp_sniffer_tid)
     {
     
         log(" I %ul kill %ul thread(rtp) \n",(unsigned long)pthread_self()
                 ,(unsigned long)ss->rtp_sniffer_tid);
+        n = _rtp_find_session(ss->rtp_sniffer_tid);
+        if(n)
+        {
+            log("sync time;\n");
+            memcpy(&n->ring_time,&ss->ring_time,sizeof(ss->ring_time));
+        }
+
+                
         thread_kill(ss->rtp_sniffer_tid);
     }
 }
@@ -345,7 +455,7 @@ pthread_t setup_rtp_sniffer(struct session_info* ss)
 {
 	pthread_t tid;
 	pcap_t* pd;
-	char file_name[256]={0};
+	char ring_time[256]={0};
 	char file_name2[256]={0};
 	char file_name3[256]={0};
 	struct rtp_session_info* rs;
@@ -353,7 +463,7 @@ pthread_t setup_rtp_sniffer(struct session_info* ss)
 
     time_t a;
     time(&a);
-
+    //ss->start_time_stamp = a;
 	if (ss->mode == SS_MODE_CALLED){
 	    log("this session is called (slave) \n");
 	}
@@ -381,30 +491,37 @@ pthread_t setup_rtp_sniffer(struct session_info* ss)
         log_err("rtp_new_session failed\n");
         
     }
+    //rs->session = ss;
+    rs->start_time_stamp = a;
+    memcpy(&rs->called,&ss->called,sizeof(ss->called));
+    memcpy(&rs->calling,&ss->calling,sizeof(ss->calling));
     log("DEBUG here\n");
     memcpy(&rs->called,&ss->called,sizeof(struct  person));
     memcpy(&rs->calling,&ss->calling,sizeof(struct  person));
     rs->pd = pd;
+    #if 0
     t += sprintf(file_name,"/tmp/%s_to_",inet_ntoa(ss->calling.ip));
     t += sprintf(file_name+t,"%s_",inet_ntoa(ss->called.ip));
    t += sprintf(file_name+t,"%lu",a);
     
     log("DEBUG here file_name %s\n",file_name);
     rs->save_all_fp = fopen(file_name,"w");
-
-
-
+#endif
+    
+   
     t=0;
-    t += sprintf(file_name2,"/tmp/%s_",inet_ntoa(ss->called.ip));
+    t += sprintf(file_name2,"/tmp/to_%s_",inet_ntoa(ss->called.ip));
     t += sprintf(file_name2+t,"%lu",a);
     rs->save_called_fp = fopen(file_name2,"w");
-    
+
+    strcpy(rs->called_name,file_name2);
     t=0;
-    t += sprintf(file_name3,"/tmp/%s_",inet_ntoa(ss->calling.ip));
+    t += sprintf(file_name3,"/tmp/from_%s_",inet_ntoa(ss->calling.ip));
     t += sprintf(file_name3+t,"%lu",a);
     rs->save_calling_fp = fopen(file_name3,"w");
     
-    log("DEBUG here");
+    strcpy(rs->calling_name,file_name3);
+    log("DEBUG here\n");
 
 	//session_up();
 	
@@ -414,6 +531,7 @@ pthread_t setup_rtp_sniffer(struct session_info* ss)
 		return -1;
 	}
 	rs->thread_id = tid;
+	log("rs thread_id %u \n",rs->thread_id);
 	
     pthread_detach(tid);//线程与sip线程分离。
 

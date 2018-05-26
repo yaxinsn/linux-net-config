@@ -71,7 +71,9 @@ struct session_info //与信令协议 sip ,skinny无关。是更高一级的应�
     struct list_head node;
     struct tm ring_time;  //响玲的时间点。
 	time_t comm_time; //接通的时间点 . ack 的时间，或是ACK的ok的时间。  strptime — date and time conversion
-	time_t hangup_time;//
+	//time_t hangup_time;//
+	time_t start_time_stamp;
+	time_t stop_time_stamp;
     //enum session_state state; /*从报文中同步过来。*/
     char* call_id; 
    // u32   callReference; //for skinny;
@@ -80,6 +82,8 @@ struct session_info //与信令协议 sip ,skinny无关。是更高一级的应�
     struct  person calling;
     struct  person called;
     pthread_t rtp_sniffer_tid;
+
+    int skinny_state;
     
      
 }; /* 用于记录本次通信的两者的ip, port, 电话号码，用户名等等。*/

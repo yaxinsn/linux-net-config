@@ -80,6 +80,7 @@ struct sip_pkt
 	//struct session_info* ss;
 	
     enum sip_session_state state;
+     enum sip_session_state session_ok_cseq;
 };
 
 

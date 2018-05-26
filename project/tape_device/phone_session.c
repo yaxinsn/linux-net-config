@@ -35,7 +35,7 @@ struct session_info* si_new_session()
     ss = (struct session_info*)malloc(sizeof(struct session_info));
     if ( ss == NULL)
         return NULL;
-        
+    memset(ss,0,sizeof(struct session_info));
     pthread_mutex_lock(&sip_ctx.head_lock);
     list_add(&ss->node,&sip_ctx.si_head);
     pthread_mutex_unlock(&sip_ctx.head_lock);
@@ -66,7 +66,7 @@ struct session_info* si_find_session(char* call_id)
         if(!strcmp(call_id,p->call_id))
         {
         
-    log("debug callid %s ,and find it.\n",call_id);
+            log("debug callid %s ,and find it.\n",call_id);
             return p;
         }
     }
