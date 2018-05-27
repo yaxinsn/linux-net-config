@@ -387,6 +387,27 @@ typedef struct qualifierOut_st
     u32 maxFramesPerpacket;
     u32 any_compressionType;
 }qualifierOut;
+
+
+void close_skinny_session_by_StrCallid(char* callid)
+{
+
+	struct session_info* ss;
+
+    ss = skinny_get_session(callid);
+    if(ss)
+    {
+        close_rtp_sniffer(ss);
+        si_del_session(ss);
+        
+    }
+    else
+    {
+        skinny_log_err("no this callid %s session\n",callid);
+        //exit(0);
+    }
+
+}
 /* all session 's end is clearPromptStatus 2018-5-6 */
 void handle_clear_prompt_status(skinny_opcode_map_t* skinny_op, 
                     u8* msg,u32 len,
@@ -436,6 +457,13 @@ void handle_stop_media_transmission(skinny_opcode_map_t* skinny_op,
 
 #endif
 
+void __start_rtp_sinnfer(struct session_info* ss)
+{
+    if((ss->called.ip.s_addr !=0)&&(ss->calling.ip.s_addr !=0))
+        ss->rtp_sniffer_tid = setup_rtp_sniffer(ss);
+
+}
+
 /* center nofity peer's ip+port to csico phone */
 
 void handle_start_media_transmission(skinny_opcode_map_t* skinny_op, u8* msg,u32 len,
@@ -473,24 +501,34 @@ void handle_start_media_transmission(skinny_opcode_map_t* skinny_op, u8* msg,u32
     CW_LOAD_U32(qualifier_out.any_compressionType,p);
     
     CW_LOAD_U32(callRefer,p);
-    skinny_log("_-_-_----------- callrefer %d , Port %d  any_compressionType %x \n",
-        callRefer,remotePort,qualifier_out.any_compressionType);
+    skinny_log("_-_-_----------- callrefer %d , Port %d  remoteIP %x \n",
+        callRefer,remotePort,remoteIpv4Address);
 
     skinny_info->callid = callRefer;
 
     ss = skinny_get_session_by_callRef(callRefer);
 	if(ss)
 	{
-	    if(ss->mode == SS_MODE_CALLING){
+	    if(ss->mode == SS_MODE_CALLING)
+	    {
+	    
+             skinny_log("_-_-_-----I am master ------ callrefer %d , Port %d  remoteIP beijiao %x \n",
+            callRefer,remotePort,remoteIpv4Address);
 	        ss->called.ip.s_addr = remoteIpv4Address;
 	        ss->called.port = (remotePort);
 	    }
 	    else
-	    {
+	    {     skinny_log("_-_-_-----I am slave, ------ callrefer %d , Port %d  remoteIP is zhujiao %x \n",
+            callRefer,remotePort,remoteIpv4Address);
+	
 	        ss->calling.ip.s_addr = remoteIpv4Address;
 	        ss->calling.port = (remotePort);
 	    }
-	    ss->rtp_sniffer_tid = setup_rtp_sniffer(ss);
+	    __start_rtp_sinnfer(ss);
+	}
+	else
+	{
+	    skinny_log_err("not find this callid %d \n",callRefer);
 	}
 	
 }
@@ -517,7 +555,7 @@ void handle_open_receive_channel_ack(skinny_opcode_map_t* skinny_op, u8* msg,u32
     CW_LOAD_U32(Port,p);
     CW_LOAD_U32(passThruPartyID,p);
     CW_LOAD_U32(callRefer,p);
-    skinny_log("_-_-_----------- callrefer %d , Port %d ipv4Address %d \n",
+    skinny_log("_-_-_----------- callrefer %d , Port %d ipv4Address %x \n",
     callRefer,Port,ipv4Address);
     
     skinny_info->callid = callRefer;
@@ -525,15 +563,26 @@ void handle_open_receive_channel_ack(skinny_opcode_map_t* skinny_op, u8* msg,u32
 	if(ss)
 	{
 	    if(ss->mode == SS_MODE_CALLING){
+	    
+        skinny_log("_-_-_-----I am master ------ callrefer %d , Port %d zhujiao ipv4Address %x \n",
+                    callRefer,Port,ipv4Address);
 	        ss->calling.ip.s_addr = ipv4Address;
 	        ss->calling.port = (Port);
 	    }
 	    else
 	    {
-	        
+	    
+            skinny_log("_-_-_-----I am slave ------ callrefer %d , Port %d beijiao ipv4Address %x \n",
+            callRefer,Port,ipv4Address);
+
 	        ss->called.ip.s_addr = ipv4Address;
 	        ss->called.port = (Port);
 	    }
+	    __start_rtp_sinnfer(ss);
+	}	
+	else
+	{
+	    skinny_log_err("not find this callid %d \n",callRefer);
 	}
     
 }
@@ -578,7 +627,22 @@ void handle_open_receive_channel(skinny_opcode_map_t* skinny_op, u8* msg,u32 len
     
 }
 #endif
-check_all_session_is_callstate_onhook(struct tm t)
+
+void cul_skinny_start_time(struct session_info* ss, struct tm* t)
+{
+    time_t a;
+    time_t now;
+    struct tm* tt;
+    time(&now);
+    a = mktime(t);
+    a -= now - ss->start_time_stamp;
+
+    tt = localtime(&a);
+    memcpy(&ss->ring_time,tt,sizeof(struct tm));
+    skinny_log(" I get time: acstime %s  \n",asctime(tt));
+    
+}
+check_all_session_is_callstate_onhook(struct tm* t)
 {
     extern struct session_ctx_t sip_ctx;
     struct session_info* p;
@@ -591,10 +655,10 @@ check_all_session_is_callstate_onhook(struct tm t)
 
         if(p->skinny_state == 2)
         {
+            cul_skinny_start_time(p,t);
             skinny_log("this callid %s session is onhook, I will close it.\n",p->call_id);
-            
-    	    memcpy(&p->ring_time,&t,sizeof(t));
-    	    close_rtp_sniffer(p);
+            close_skinny_session_by_StrCallid(p->call_id);
+
         }
     }
     
@@ -609,6 +673,7 @@ void handle_default_TimeDate(skinny_opcode_map_t* skinny_op, u8* msg,u32 len,
 	int wMilliseconds;
 	time_t system_time;
 	u8* p = msg;
+	char callid[32]={0};
 	struct session_info* ss ;
 	
     skinny_log("enter\n");
@@ -642,16 +707,21 @@ void handle_default_TimeDate(skinny_opcode_map_t* skinny_op, u8* msg,u32 len,
     if(skinny_info->callid == 0)
     {
         skinny_log("callid is 0\n");
-        check_all_session_is_callstate_onhook(t);
+        check_all_session_is_callstate_onhook(&t);
         return;
     }
-    else{
-
-    	ss = skinny_get_session_by_callRef(skinny_info->callid);
+    else
+    {
+	
+	
+	    ss = skinny_get_session_by_callRef(skinny_info->callid);
     	if(ss)
     	{
-    	    memcpy(&ss->ring_time,&t,sizeof(t));
-    	    close_rtp_sniffer(ss);
+    	    cul_skinny_start_time(ss,&t);
+    	    
+            skinny_log("I will close this skinny %d\n",skinny_info->callid);
+            sprintf(callid,"%d",skinny_info->callid);
+        	close_skinny_session_by_StrCallid(callid);
     	    
     	}
     	else
@@ -659,6 +729,7 @@ void handle_default_TimeDate(skinny_opcode_map_t* skinny_op, u8* msg,u32 len,
     		skinny_log_err("no this callid %s session\n",skinny_info->callid);
     	    //exit(0);
     	}
+        
 	}
 }
 #if 0
@@ -763,7 +834,7 @@ void handle_CallState(skinny_opcode_map_t* skinny_op, u8* msg,u32 len,
 	}
     else if(callState == 0xc)//Proceed
     {
-	    ss->mode = SS_MODE_CALLED;
+	    ss->mode = SS_MODE_CALLING;
 	    skinny_log(" I am process callstate ,so I am calling. callReference %d \n",callReference);
 	    
         
@@ -813,7 +884,7 @@ void handle_DialedNumber(skinny_opcode_map_t* skinny_op, u8* msg,u32 len,
 		return;
 	}
 	ss->mode = SS_MODE_CALLING;
-	skinny_log("dailed number %s \n",dailed_num);
+	skinny_log("callid %s dailed number %s \n",callid,dailed_num);
 	
 	return;
 }

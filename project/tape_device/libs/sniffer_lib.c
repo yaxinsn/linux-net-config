@@ -92,7 +92,7 @@ int sniffer_setfilter(pcap_t * pd,const char* bpf_str)
 	//设置过滤规则
 	struct bpf_program fcode;
 
-	//printf("---------%s:%d---pd %p--bpf_str %s\n",__func__,__LINE__,pd,bpf_str);
+	printf("---------%s:%d---pd %p--bpf_str %s\n",__func__,__LINE__,pd,bpf_str);
     if(pcap_compile(pd, &fcode, bpf_str,1, 0) <0)
     	printf("pcap_compile error %d %s\n",errno,strerror(errno));
 

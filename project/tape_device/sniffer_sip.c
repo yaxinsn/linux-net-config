@@ -248,7 +248,7 @@ int parse_msg_header(char* mh,struct sip_pkt* sp)
 	if(sp->msg_hdr.to == NULL)
         v = __parse_msg_header_str_element(mh,"To",&sp->msg_hdr.to);
 	
-	if(sp->msg_hdr.to == NULL)
+	if(sp->msg_hdr.date == NULL)
         v = __parse_msg_header_str_element(mh,"Date",&sp->msg_hdr.date);
 
 	if(sp->msg_hdr.user_agent == NULL)
@@ -390,9 +390,39 @@ void _create_session(struct sip_pkt* spkt_p)
 		sip_log_err("ss is not created!\n");
 	}
 }
+int get_session_start_time(struct sip_pkt* spkt_p, struct session_info* ss)
+{
+    char* c =  spkt_p->msg_hdr.date;
+    struct tm ttm;
+    if(!c)
+        return -1;
+    strptime(c,"%a, %d %B %Y %T %Z",&ttm);
+    sip_log(" I get time: acstime %s  \n",asctime(&ttm));
+    memcpy(&ss->ring_time,&ttm,sizeof(ttm));
+    return 0;
+}
+
+int __get_ok_pkt_cseq(struct sip_pkt* spkt_p)
+{
+
+    char* p=    spkt_p->msg_hdr.cseq;
+    char* p1;
+    int cseq_key;
+    if(p != NULL)
+        return 0;//unkown;
+    p1 = strchr(p,' ');
+    *p1 = 0;
+    cseq_key = atoi(p);
+    *p1 = ' ';
+    sip_log("I get a ok's cseq %d\n",cseq_key);
+    return cseq_key;
+}
+
+
 void _update_session_for_ok(struct sip_pkt* spkt_p)
 {
     struct session_info* ss;
+    int ok_cseq;
     if(spkt_p->msg_hdr.call_id)
     {
        
@@ -402,28 +432,17 @@ void _update_session_for_ok(struct sip_pkt* spkt_p)
         {
         
             sip_log("I find the session (callid %s) \n",ss->call_id);
-            if (ss->mode == SS_MODE_CALLED && spkt_p->state == SS_ACK)
+            if (ss->mode == SS_MODE_CALLED)
             {
-  //              ss->state = spkt_p->state;
-                if(spkt_p->body_sdp)
-                {
-                    ss->calling.ip.s_addr = spkt_p->rtp_ip.s_addr;
-                    ss->calling.port = spkt_p->rtp_port;
-                    ss->rtp_sniffer_tid = setup_rtp_sniffer(ss);
-                }
-            }
-            else if (ss->mode == SS_MODE_CALLED && spkt_p->state == SS_OK)
-            {
- //               ss->state = spkt_p->state;
                 if(spkt_p->body_sdp)
                 {
                     ss->called.ip.s_addr = spkt_p->rtp_ip.s_addr;
                     ss->called.port = spkt_p->rtp_port;
                 }
             }
-            else if  (ss->mode ==SS_MODE_CALLING && spkt_p->state == SS_OK)
+            else if  (ss->mode ==SS_MODE_CALLING)
             {
-  //              ss->state = spkt_p->state;
+                get_session_start_time(spkt_p,ss);
                 if(spkt_p->body_sdp)
                 {
                     ss->called.ip.s_addr = spkt_p->rtp_ip.s_addr;
@@ -462,6 +481,7 @@ void _update_session(struct sip_pkt* spkt_p)
             if (ss->mode == SS_MODE_CALLED && spkt_p->state == SS_ACK)
             {
   //              ss->state = spkt_p->state;
+                get_session_start_time(spkt_p,ss);
                 if(spkt_p->body_sdp)
                 {
                     ss->calling.ip.s_addr = spkt_p->rtp_ip.s_addr;
@@ -481,6 +501,8 @@ void _update_session(struct sip_pkt* spkt_p)
             else if  (ss->mode ==SS_MODE_CALLING && spkt_p->state == SS_OK)
             {
   //              ss->state = spkt_p->state;
+  
+                get_session_start_time(spkt_p,ss);
                 if(spkt_p->body_sdp)
                 {
                     ss->called.ip.s_addr = spkt_p->rtp_ip.s_addr;

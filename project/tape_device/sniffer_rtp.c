@@ -305,15 +305,15 @@ static void sighandler(int s)
             
             memset(new_name,0,sizeof(new_name));
             
-            sprintf(new_name,"/tmp/to_%s_close_time_%s_duration_%d.%s",
-                calledip_str,ring_time,duration, file_perfix);
+            sprintf(new_name,"/tmp/from_%s_startTime_%s_duration_%d.%s",
+                callingip_str,ring_time,duration, file_perfix);
                 
             rename(n->called_name,new_name); 
             
             memset(new_name,0,sizeof(new_name));
             
-            sprintf(new_name,"/tmp/to_%s_close_time_%s_duration_%d.%s",
-                callingip_str,ring_time,duration, file_perfix);
+            sprintf(new_name,"/tmp/to_%s_startTime_%s_duration_%d.%s",
+                calledip_str,ring_time,duration, file_perfix);
 
             rename(n->calling_name,new_name);
            // if(n->save_all_fp)
@@ -492,6 +492,7 @@ pthread_t setup_rtp_sniffer(struct session_info* ss)
         
     }
     //rs->session = ss;
+    ss->start_time_stamp = a;
     rs->start_time_stamp = a;
     memcpy(&rs->called,&ss->called,sizeof(ss->called));
     memcpy(&rs->calling,&ss->calling,sizeof(ss->calling));

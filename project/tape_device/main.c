@@ -64,7 +64,7 @@ int main(int argc,char* argv[])
 	}
 #endif	
     sniffer = sniffer_sip_start();
-
+    sleep(1);
 	sniffer_skinny = sniffer_skinny_start();
     printf("%s:%d \n",__func__,__LINE__);
 	pthread_join(sniffer,NULL);
