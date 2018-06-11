@@ -20,6 +20,8 @@
 #include "sniffer_rtp.h"
 //#include "upload.h"
 
+
+#include "mixer.h"
 #include "phone_session.h"
 
 struct rtp_session_info
@@ -44,6 +46,22 @@ struct rtp_session_info
     time_t stop_time_stamp;
     //struct session_info* session;
     struct tm ring_time; 
+
+/* 2018-6-10 */
+    struct mixer stMix;
+    int calling_pkt_count;
+    int called_pkt_count;
+    int mix_count;
+
+    g722_decode_state_t* g722dst;
+    FILE* save_mix_fp; 
+
+    FILE* save_calling_linear_fp; 
+    FILE* save_called_linear_fp; 
+    
+    char calling_name_linear[256];
+    
+    char called_name_linear[256];
 };
 
 
@@ -75,7 +93,7 @@ void _rtp_del_session(struct rtp_session_info* si)
 {
    
     pthread_mutex_lock(&rtp_ctx.head_lock);
-
+   g722_decode_release(si->g722dst);
     list_del(&si->node);
     
     pthread_mutex_unlock(&rtp_ctx.head_lock);
@@ -225,6 +243,69 @@ static int save_rtp_frame(FILE* fp,void* buffer,int len)
         return fwrite(buffer,len,1,fp);
     return -1;
 }
+u8* rtp_g722_decode(g722_decode_state_t* g722dst,char *src, int src_len, int* len) 
+{
+	//*len = 0;
+
+	
+	if(NULL==src) return NULL;
+
+	int samples = src_len; 
+	const uint8_t* uc_src=(const uint8_t*)src;
+
+
+	*len = samples*2;
+	char* char_dst=malloc( sizeof(char)*(samples*2));
+	if(char_dst == NULL)
+	{
+	    log_err("malloc err!\n");
+	    return NULL;
+	}
+	memset(char_dst, 0, *len);
+	int16_t *dst=(int16_t*)char_dst;
+
+
+	*len = g722_decode((g722_decode_state_t*)g722dst, dst, uc_src, src_len);
+
+
+	// g722_decodeصĳӦint16_tͼ, Ҫ*sizeof(int16_t) _ ൱*2
+	*len *= 2;
+
+	return char_dst;
+}
+
+static int session_talking_pkt_dec722
+(struct rtp_session_info* rs,u8* payload, int payload_len,
+   u8 rty_type,FILE* fp)
+{
+    int dest_g722_len;
+    u8* dest_buf;
+    int mix_len;
+    bool ret;
+    
+    if(rty_type == RTP_TYPE_PCMU_G722)
+    {
+    
+        dest_buf = rtp_g722_decode(rs->g722dst,payload,payload_len,&dest_g722_len);
+        if(dest_buf){
+            fwrite(dest_buf,dest_g722_len,1,fp);
+            
+        }
+        else
+        {
+            log_err("g722 decode error! \n");
+            return -1;
+        }
+    }
+    else
+    {
+        log_err("this pkt not a g722, I can't decode it \n");
+        return -1;
+    }
+   
+            log("DEBUG--- \n");
+     return 0;
+}
 static void session_talking(struct iphdr* iph,struct udphdr* udph,
     struct rtp_session_info* rs)
 {
@@ -249,11 +330,23 @@ static void session_talking(struct iphdr* iph,struct udphdr* udph,
     }
     if(iph->saddr == rs->calling.ip.s_addr)
     {
+      
+        rs->calling_pkt_count++;
+        session_talking_pkt_dec722(rs,rtp_payload,
+            rtp_len-sizeof(struct rttphdr),rs->rtp_type,
+            rs->save_calling_linear_fp);
         save_rtp_frame(rs->save_calling_fp,rtp_payload,rtp_len-sizeof(struct rttphdr));
     }
 
     if(iph->saddr == rs->called.ip.s_addr)
     {
+   
+        rs->called_pkt_count++;
+        
+        session_talking_pkt_dec722(rs,rtp_payload,
+            rtp_len-sizeof(struct rttphdr),rs->rtp_type,
+            rs->save_called_linear_fp);
+  
         save_rtp_frame(rs->save_called_fp,rtp_payload,rtp_len-sizeof(struct rttphdr));
     }
 
@@ -270,6 +363,82 @@ char* get_rtp_type(u8 type)
             return g_rtp_file_perfix[i].type_str;
     }
     return "NA";
+}
+#define READ_BUF_SIZE 1024
+int mix_the_linear_file(struct rtp_session_info* n)
+{
+    char save_file_name[256] = {0};
+    int fp_calling;
+    int fp_called;
+    FILE* dest_fp;
+    u8 calling_buf[READ_BUF_SIZE];
+    u8 called_buf[READ_BUF_SIZE];
+    int reta;
+    int retb;
+    int mix_len = 0;
+    int break_flag = 0;
+    
+    char calledip_str[30]={0};
+    char callingip_str[30]={0};
+    char ring_time[64] =  {0};
+
+    fp_calling = open(n->calling_name_linear,O_RDONLY);
+    fp_called = open(n->called_name_linear,O_RDONLY);
+
+    log("DEBUG fp_calling %d fp_called %d \n",fp_calling,fp_called);
+
+        
+    strftime(ring_time,256,"%Y-%m-%d-%H-%M-%S",&n->ring_time);
+    sprintf(calledip_str, "%s",inet_ntoa(n->called.ip));
+    sprintf(callingip_str, "%s",inet_ntoa(n->calling.ip));
+                
+    sprintf(save_file_name,"/tmp/from_%s_to_%s_startTime_%s.mix",
+        callingip_str,calledip_str,ring_time);
+        
+    log("save file name %s \n",save_file_name);    
+    
+    dest_fp = fopen(save_file_name,"w");
+
+    while(1)
+    {
+        memset(calling_buf,0,sizeof(calling_buf));
+        memset(called_buf,0,sizeof(calling_buf));
+        
+        reta = read(fp_calling,calling_buf,READ_BUF_SIZE);
+        retb = read(fp_called,called_buf,READ_BUF_SIZE);
+        if(reta  <= 0 )//read end
+        {
+            log_err("calling file read errro , reta = %d \n",reta);
+            break_flag |= 1;
+        }
+        else if(reta > 0)
+        {
+            mix(&n->stMix,calling_buf,reta,&mix_len);
+            log("mix_len %d \n", mix_len);
+        }
+        
+        if(retb  <= 0 )//read end
+        {
+            break_flag |= 2;
+            log_err("called file read errro , reta = %d \n",retb);
+        }
+        else if(reta > 0)
+        {
+            mix(&n->stMix,called_buf,retb,&mix_len);
+            log("mix_len %d \n", mix_len);
+        }
+        fwrite(n->stMix.data,mix_len,1,dest_fp);
+        if(break_flag == 3){
+            
+             log("debug break it\n");
+            break;
+        }
+    }
+    fclose(dest_fp);
+    close(fp_calling);
+    log("debug \n");
+    close(fp_called);
+    return 0;
 }
 static void sighandler(int s)
 {
@@ -302,6 +471,16 @@ static void sighandler(int s)
                 fclose(n->save_calling_fp);
             file_perfix = get_rtp_type(n->rtp_type);
 
+            if(n->save_mix_fp)
+                fclose(n->save_mix_fp);
+
+            if(n->save_calling_linear_fp)
+                fclose(n->save_calling_linear_fp);
+            
+            if(n->save_called_linear_fp)
+                fclose(n->save_called_linear_fp);
+
+            mix_the_linear_file(n);  
             
             memset(new_name,0,sizeof(new_name));
             
@@ -455,9 +634,11 @@ pthread_t setup_rtp_sniffer(struct session_info* ss)
 {
 	pthread_t tid;
 	pcap_t* pd;
-	char ring_time[256]={0};
+	char mix_file[256]={0};
 	char file_name2[256]={0};
 	char file_name3[256]={0};
+	char file_name2_linear[256]={0};
+	char file_name3_linear[256]={0};
 	struct rtp_session_info* rs;
 	int t= 0;
 
@@ -500,28 +681,43 @@ pthread_t setup_rtp_sniffer(struct session_info* ss)
     memcpy(&rs->called,&ss->called,sizeof(struct  person));
     memcpy(&rs->calling,&ss->calling,sizeof(struct  person));
     rs->pd = pd;
-    #if 0
-    t += sprintf(file_name,"/tmp/%s_to_",inet_ntoa(ss->calling.ip));
-    t += sprintf(file_name+t,"%s_",inet_ntoa(ss->called.ip));
-   t += sprintf(file_name+t,"%lu",a);
+#if 0
+    t += sprintf(mix_file,"/tmp/%s_to_",inet_ntoa(ss->calling.ip));
+    t += sprintf(mix_file+t,"%s_",inet_ntoa(ss->called.ip));
+    t += sprintf(mix_file+t,"%lu.mixed_linear",a);
     
-    log("DEBUG here file_name %s\n",file_name);
-    rs->save_all_fp = fopen(file_name,"w");
+    log("DEBUG here MIX file  %s\n",mix_file);
+    rs->save_mix_fp = fopen(mix_file,"w");
 #endif
+    rs->g722dst = (void*)g722_decode_init((g722_decode_state_t*) rs->g722dst, G722BITSRATE, 1 /* 8000 */);
+
     
    
     t=0;
     t += sprintf(file_name2,"/tmp/to_%s_",inet_ntoa(ss->called.ip));
-    t += sprintf(file_name2+t,"%lu",a);
+    t += sprintf(file_name2+t,"%lu.pkt",a);
     rs->save_called_fp = fopen(file_name2,"w");
-
     strcpy(rs->called_name,file_name2);
+    
     t=0;
     t += sprintf(file_name3,"/tmp/from_%s_",inet_ntoa(ss->calling.ip));
-    t += sprintf(file_name3+t,"%lu",a);
+    t += sprintf(file_name3+t,"%lu.pkt",a);
     rs->save_calling_fp = fopen(file_name3,"w");
-    
     strcpy(rs->calling_name,file_name3);
+
+    
+    t=0;
+    t += sprintf(file_name2_linear,"/tmp/to_%s_",inet_ntoa(ss->called.ip));
+    t += sprintf(file_name2_linear+t,"%lu.linear",a);
+    rs->save_called_linear_fp = fopen(file_name2_linear,"w");
+    strcpy(rs->called_name_linear,file_name2_linear);
+    
+    t=0;
+    t += sprintf(file_name3_linear,"/tmp/from_%s_",inet_ntoa(ss->calling.ip));
+    t += sprintf(file_name3_linear+t,"%lu.linear",a);
+    rs->save_calling_linear_fp = fopen(file_name3_linear,"w");
+    strcpy(rs->calling_name_linear,file_name3_linear);
+
     log("DEBUG here\n");
 
 	//session_up();

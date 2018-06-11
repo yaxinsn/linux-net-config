@@ -23,6 +23,8 @@
 #include "wake_utils.h"
 #include "sniffer_sip.h"
 
+#include "g722.h"
+#include "mixer.h"
 
 pthread_t setup_rtp_sniffer(struct session_info* ss);
 
