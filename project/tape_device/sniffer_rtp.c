@@ -22,15 +22,21 @@
 
 
 #include "mixer.h"
+
+#include "curl_upload.h"
+
 #include "phone_session.h"
 
+extern struct config_st g_config;
 struct rtp_session_info
 {
     
     struct list_head node;
     pthread_t   thread_id;
     pcap_t*     pd;
-    
+   
+    int     call_dir; /// is same the ss mode.
+ 
     struct  person calling;  //sip msg header From
     struct  person called;   //sip msg header to
     //FILE*   save_all_fp; 
@@ -46,6 +52,7 @@ struct rtp_session_info
     time_t stop_time_stamp;
     //struct session_info* session;
     struct tm ring_time; 
+    struct tm end_time;
 
 /* 2018-6-10 */
     struct mixer stMix;
@@ -93,7 +100,7 @@ void _rtp_del_session(struct rtp_session_info* si)
 {
    
     pthread_mutex_lock(&rtp_ctx.head_lock);
-   g722_decode_release(si->g722dst);
+    g722_decode_release(si->g722dst);
     list_del(&si->node);
     
     pthread_mutex_unlock(&rtp_ctx.head_lock);
@@ -119,64 +126,6 @@ struct rtp_session_info* _rtp_find_session(pthread_t   thread_id)
 }
 
 /****************************/
-//这个函数也应该没作用了。
-#if 0
-static void session_up()
-{
-    char buf[256] = {0};
-    struct phone_msg* msg;
-    int len;
-    int ret;
-    msg = ( struct phone_msg*)buf;
-    msg->event = RING_UP;
-    len = sizeof(struct phone_msg);
-    ret = uploader_push_msg(msg, len);
-    if(ret != 0)
-        log_err("uploader_push_msg failed,ret %d \n",ret);
-    
-}
-#endif
-/* 向upload发一个ring down的报文。应该是没什么作用了。 */
-#if 0
-static void session_down()
-{
-    char buf[256] = {0};
-    struct phone_msg* msg;
-    int len;
-    int ret;
-    msg = ( struct phone_msg*)buf;
-    msg->event = RING_DOWN;
-    len = sizeof(struct phone_msg);
-#if 0
-    ret = uploader_push_msg(msg, len);
-    if(ret != 0)
-        log_err("uploader_push_msg (RING_DOWN) failed,ret %d \n",ret);
-#endif
-}
-#endif
-#if 0
-struct iphdr {
-#if defined(__LITTLE_ENDIAN_BITFIELD)
-        __u8    ihl:4,
-                version:4;
-#elif defined (__BIG_ENDIAN_BITFIELD)
-        __u8    version:4,
-                ihl:4;
-#else
-#error  "Please fix <asm/byteorder.h>"
-#endif
-        __u8    tos;
-        __be16  tot_len;
-        __be16  id;
-        __be16  frag_off;
-        __u8    ttl;
-        __u8    protocol;
-        __sum16 check;
-        __be32  saddr;
-        __be32  daddr;
-        /*The options start here. */
-};
-#endif
 
 enum RTP_TYPE
 {
@@ -268,7 +217,7 @@ u8* rtp_g722_decode(g722_decode_state_t* g722dst,char *src, int src_len, int* le
 	*len = g722_decode((g722_decode_state_t*)g722dst, dst, uc_src, src_len);
 
 
-	// g722_decodeصĳӦint16_tͼ, Ҫ*sizeof(int16_t) _ ൱*2
+	// g722_decode返回的长度应该是收int16_t类型计算的, 因此要*sizeof(int16_t) _ 相当于*2
 	*len *= 2;
 
 	return char_dst;
@@ -289,6 +238,7 @@ static int session_talking_pkt_dec722
         dest_buf = rtp_g722_decode(rs->g722dst,payload,payload_len,&dest_g722_len);
         if(dest_buf){
             fwrite(dest_buf,dest_g722_len,1,fp);
+            free(dest_buf);
             
         }
         else
@@ -303,7 +253,7 @@ static int session_talking_pkt_dec722
         return -1;
     }
    
-            log("DEBUG--- \n");
+     
      return 0;
 }
 static void session_talking(struct iphdr* iph,struct udphdr* udph,
@@ -330,12 +280,12 @@ static void session_talking(struct iphdr* iph,struct udphdr* udph,
     }
     if(iph->saddr == rs->calling.ip.s_addr)
     {
-      
+       
         rs->calling_pkt_count++;
         session_talking_pkt_dec722(rs,rtp_payload,
             rtp_len-sizeof(struct rttphdr),rs->rtp_type,
             rs->save_calling_linear_fp);
-        save_rtp_frame(rs->save_calling_fp,rtp_payload,rtp_len-sizeof(struct rttphdr));
+        //save_rtp_frame(rs->save_calling_fp,rtp_payload,rtp_len-sizeof(struct rttphdr));
     }
 
     if(iph->saddr == rs->called.ip.s_addr)
@@ -347,7 +297,7 @@ static void session_talking(struct iphdr* iph,struct udphdr* udph,
             rtp_len-sizeof(struct rttphdr),rs->rtp_type,
             rs->save_called_linear_fp);
   
-        save_rtp_frame(rs->save_called_fp,rtp_payload,rtp_len-sizeof(struct rttphdr));
+       // save_rtp_frame(rs->save_called_fp,rtp_payload,rtp_len-sizeof(struct rttphdr));
     }
 
     //save_rtp_frame(rs->save_all_fp,rttp_payload,rtp_len-sizeof(struct rttphdr));
@@ -378,8 +328,6 @@ int mix_the_linear_file(struct rtp_session_info* n)
     int mix_len = 0;
     int break_flag = 0;
     
-    char calledip_str[30]={0};
-    char callingip_str[30]={0};
     char ring_time[64] =  {0};
 
     fp_calling = open(n->calling_name_linear,O_RDONLY);
@@ -389,11 +337,9 @@ int mix_the_linear_file(struct rtp_session_info* n)
 
         
     strftime(ring_time,256,"%Y-%m-%d-%H-%M-%S",&n->ring_time);
-    sprintf(calledip_str, "%s",inet_ntoa(n->called.ip));
-    sprintf(callingip_str, "%s",inet_ntoa(n->calling.ip));
                 
     sprintf(save_file_name,"/tmp/from_%s_to_%s_startTime_%s.mix",
-        callingip_str,calledip_str,ring_time);
+        n->calling.number,n->called.number,ring_time);
         
     log("save file name %s \n",save_file_name);    
     
@@ -440,6 +386,109 @@ int mix_the_linear_file(struct rtp_session_info* n)
     close(fp_called);
     return 0;
 }
+
+int cul_rtp_end_time(struct rtp_session_info* n)
+{
+
+    u32 duration;
+
+    time_t a;
+    struct tm* tt;
+    a = mktime(&n->ring_time);
+    
+    duration = n->stop_time_stamp - n->start_time_stamp;
+
+    a += duration;
+
+    tt = localtime(&a);
+    memcpy(&n->end_time,tt,sizeof(struct tm));
+    return 0;
+}
+int upload_the_mix_file( struct rtp_session_info* n)
+{
+    int ret;
+    struct upload_file_info ufi;
+    char time_str[256]={0};
+    
+    char save_file_name[256]={0};
+    
+    char ring_time[256]={0};
+    
+    memcpy(ufi.box_id,g_config.eth0_mac,6);
+    
+    strncpy(ufi.call_caller_number,n->calling.number,sizeof(ufi.call_caller_number));
+    
+    strncpy(ufi.call_callee_number,n->called.number,sizeof(ufi.call_callee_number));
+ 
+    if(n->call_dir =  SS_MODE_CALLING){
+        sprintf(ufi.call_direction,"%d",0);
+        
+        strncpy(ufi.call_local_number,n->calling.number,sizeof(ufi.call_local_number));
+    }
+    else
+    {
+        sprintf(ufi.call_direction,"%d",1);
+        strncpy(ufi.call_local_number,n->called.number,sizeof(ufi.call_local_number));
+    }
+
+    strftime(time_str,256,"%Y-%m-%d %H:%M:%S",&n->ring_time);
+    strncpy(ufi.call_begin_time,time_str,sizeof(ufi.call_begin_time));
+    
+    memset(time_str,0,sizeof(time_str));
+    strftime(time_str,256,"%Y-%m-%d %H:%M:%S",&n->end_time);
+    strncpy(ufi.call_end_time,time_str,sizeof(ufi.call_end_time));
+
+    strftime(ring_time,256,"%Y-%m-%d-%H-%M-%S",&n->ring_time);     
+    sprintf(ufi.file_name,"from_%s_to_%s_startTime_%s.mix",
+            n->calling.number,n->called.number,ring_time);
+
+    ret = upload_mix_file(NULL,&ufi);
+    return ret;
+}
+
+static void sighandler(int s)
+{
+        int retval = 3;
+        struct rtp_session_info* n;
+
+        
+        n = _rtp_find_session(pthread_self());
+        if(n)
+        {
+        log("I  find rtp session -------n->rtp_typ %d-----\n",n->rtp_type);
+            time(&n->stop_time_stamp);
+                cul_rtp_end_time(n);
+            
+            pcap_close(n->pd);
+            if(n->save_called_fp)
+                fclose(n->save_called_fp);
+            if(n->save_calling_fp)
+                fclose(n->save_calling_fp);
+
+            if(n->save_mix_fp)
+                fclose(n->save_mix_fp);
+            if(n->save_calling_linear_fp)
+                fclose(n->save_calling_linear_fp);
+            
+            if(n->save_called_linear_fp)
+                fclose(n->save_called_linear_fp);
+
+            mix_the_linear_file(n);    
+
+            upload_the_mix_file(n);
+           
+            _rtp_del_session(n);
+        }
+        else
+        {
+            log_err("not find rtp session \n");
+        }
+        log(" %u thread quit \n", (unsigned long)pthread_self());
+        pthread_exit(&retval);
+        
+}
+
+#if 0
 static void sighandler(int s)
 {
         int retval = 3;
@@ -480,23 +529,17 @@ static void sighandler(int s)
             if(n->save_called_linear_fp)
                 fclose(n->save_called_linear_fp);
 
-            mix_the_linear_file(n);  
-            
+            mix_the_linear_file(n);    
             memset(new_name,0,sizeof(new_name));
-            
             sprintf(new_name,"/tmp/from_%s_startTime_%s_duration_%d.%s",
                 callingip_str,ring_time,duration, file_perfix);
-                
             rename(n->called_name,new_name); 
             
             memset(new_name,0,sizeof(new_name));
-            
             sprintf(new_name,"/tmp/to_%s_startTime_%s_duration_%d.%s",
                 calledip_str,ring_time,duration, file_perfix);
-
             rename(n->calling_name,new_name);
-           // if(n->save_all_fp)
-           //     fclose(n->save_all_fp);
+            
            
             _rtp_del_session(n);
         }
@@ -508,7 +551,7 @@ static void sighandler(int s)
         pthread_exit(&retval);
         
 }
-
+#endif
 int thread_kill(pthread_t thread_id)
 {
         int kill_ret = pthread_kill(thread_id,SIGQUIT);
@@ -634,9 +677,9 @@ pthread_t setup_rtp_sniffer(struct session_info* ss)
 {
 	pthread_t tid;
 	pcap_t* pd;
-	char mix_file[256]={0};
-	char file_name2[256]={0};
-	char file_name3[256]={0};
+	//char mix_file[256]={0};
+	//char file_name2[256]={0};
+	//char file_name3[256]={0};
 	char file_name2_linear[256]={0};
 	char file_name3_linear[256]={0};
 	struct rtp_session_info* rs;
@@ -658,8 +701,10 @@ pthread_t setup_rtp_sniffer(struct session_info* ss)
 	 
 	log("sniffer rtp info: \n");
 	
-	log("sniffer calling %s:%d \n",inet_ntoa(ss->calling.ip),ss->calling.port);
-	log("sniffer called  %s:%d \n",inet_ntoa(ss->called.ip),ss->called.port);
+	log("sniffer calling %s:%d phone_number %s \n",
+	    inet_ntoa(ss->calling.ip),ss->calling.port,ss->calling.number);
+	log("sniffer called  %s:%d phone_number %s \n",
+	    inet_ntoa(ss->called.ip),ss->called.port,ss->called.number);
 
     pd =  init_sniffer_rtp(ss);
     if(pd == NULL)
@@ -673,14 +718,19 @@ pthread_t setup_rtp_sniffer(struct session_info* ss)
         
     }
     //rs->session = ss;
+    
     ss->start_time_stamp = a;
     rs->start_time_stamp = a;
+    rs->call_dir = ss->mode;
     memcpy(&rs->called,&ss->called,sizeof(ss->called));
     memcpy(&rs->calling,&ss->calling,sizeof(ss->calling));
     log("DEBUG here\n");
     memcpy(&rs->called,&ss->called,sizeof(struct  person));
     memcpy(&rs->calling,&ss->calling,sizeof(struct  person));
     rs->pd = pd;
+    
+    rs->g722dst = (void*)g722_decode_init((g722_decode_state_t*) rs->g722dst, G722BITSRATE, 1 /* 表明采用8000采样 */);
+
 #if 0
     t += sprintf(mix_file,"/tmp/%s_to_",inet_ntoa(ss->calling.ip));
     t += sprintf(mix_file+t,"%s_",inet_ntoa(ss->called.ip));
@@ -688,10 +738,6 @@ pthread_t setup_rtp_sniffer(struct session_info* ss)
     
     log("DEBUG here MIX file  %s\n",mix_file);
     rs->save_mix_fp = fopen(mix_file,"w");
-#endif
-    rs->g722dst = (void*)g722_decode_init((g722_decode_state_t*) rs->g722dst, G722BITSRATE, 1 /* 8000 */);
-
-    
    
     t=0;
     t += sprintf(file_name2,"/tmp/to_%s_",inet_ntoa(ss->called.ip));
@@ -706,6 +752,7 @@ pthread_t setup_rtp_sniffer(struct session_info* ss)
     strcpy(rs->calling_name,file_name3);
 
     
+#endif
     t=0;
     t += sprintf(file_name2_linear,"/tmp/to_%s_",inet_ntoa(ss->called.ip));
     t += sprintf(file_name2_linear+t,"%lu.linear",a);
@@ -718,6 +765,8 @@ pthread_t setup_rtp_sniffer(struct session_info* ss)
     rs->save_calling_linear_fp = fopen(file_name3_linear,"w");
     strcpy(rs->calling_name_linear,file_name3_linear);
 
+
+    
     log("DEBUG here\n");
 
 	//session_up();

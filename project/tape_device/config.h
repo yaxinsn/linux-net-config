@@ -45,6 +45,7 @@ struct config_st
 	struct callcenter_st skinny_call;
 	struct tapeserver_st tape;
 	struct password_st pwd;
+	u8   eth0_mac[6];
 };
 int get_config(struct config_st* c);
 int show_config(struct config_st* c);

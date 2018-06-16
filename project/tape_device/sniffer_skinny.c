@@ -7,6 +7,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <string.h>
 #include "log.h"
 
 #include <pthread.h>    
@@ -640,8 +641,8 @@ void cul_skinny_start_time(struct session_info* ss, struct tm* t)
     tt = localtime(&a);
     memcpy(&ss->ring_time,tt,sizeof(struct tm));
     skinny_log(" I get time: acstime %s  \n",asctime(tt));
-    
 }
+
 check_all_session_is_callstate_onhook(struct tm* t)
 {
     extern struct session_ctx_t sip_ctx;
@@ -847,6 +848,124 @@ void handle_CallState(skinny_opcode_map_t* skinny_op, u8* msg,u32 len,
 	skinny_info->callstate = callState;
 	ss->skinny_state = callState;
 }                            
+void handle_callinfo2_function(skinny_opcode_map_t* skinny_op, u8* msg,u32 len,
+    skinny_info_t* skinny_info)
+{
+    
+	u8* p = msg;
+	u32 lineInstance;
+	u32 callReference;
+	u32 callType;
+	u32 originalCdpnRedirectReason;
+	u32 lastRedirect;
+	u32 callInstance;
+	u32 callSecurityStatus;
+	u32 partyPiRestrictionBits;
+	//char* calling_number = NULL;
+	//char* called_number = NULL;
+	//char* AlternateCalling_number = NULL;
+    char* t;
+	
+	struct session_info* ss;
+	
+	char callid[64]={0};
+	
+    skinny_log("enter\n");
+	CW_LOAD_U32(lineInstance,p);
+	CW_LOAD_U32(callReference,p);
+	CW_LOAD_U32(callType,p);
+	
+	CW_LOAD_U32(originalCdpnRedirectReason,p);
+	CW_LOAD_U32(lastRedirect,p);
+	CW_LOAD_U32(callInstance,p);
+	CW_LOAD_U32(callSecurityStatus,p);
+	CW_LOAD_U32(partyPiRestrictionBits,p);
+	
+
+	ss = skinny_get_session_by_callRef(callReference);
+    if(ss)
+    {
+
+
+    }
+    else
+    {
+        skinny_log_err("not find this callid %d \n",callReference);
+        return;
+    }
+    
+	if(callType == 2) //outBoundCall
+	{
+    	t = p;
+    	strncpy(ss->calling.number,t,sizeof(ss->calling.number));
+    	
+    	t+=strlen(t);
+    	
+    	if(*t == 0)
+    	    t++;
+    	
+    	if(*t == 0)
+    	    t++;
+    	    
+    	if(*t == 0)
+    	{
+    	    skinny_log_err("errir next t %s \n",++t);
+    	}
+    	else
+    	{
+    	    
+    	    strncpy(ss->called.number,t,sizeof(ss->called.number));
+    	    
+    	}
+	}
+	else if((callType == 1))//InBoundCall
+	{
+	    t = p;
+    	
+    	strncpy(ss->calling.number,t,sizeof(ss->calling.number));
+    	skinny_log("---- calling number %s \n",ss->calling.number);
+    	t+=strlen(t);
+    	
+    	if(*t == 0)
+    	    t++;
+    	
+    	if(*t == 0)
+    	    t++;
+    	if(*t == 0)
+    	{
+    	    skinny_log_err("error for lternateCalling, next t %s \n",++t);
+    	}
+    	else
+    	{
+	        printf("[%s:%d] debug\n",__func__,__LINE__);
+    	   // AlternateCalling_number = strdup(t);
+    	    t+=strlen(t);
+    	}
+
+    	if(*t == 0)
+    	    t++;
+    	 if(*t == 0)
+    	{
+    	    skinny_log_err("errir next t %s \n",++t);
+    	}
+    	else
+    	{
+    	 strncpy(ss->called.number,t,sizeof(ss->called.number));
+    	    
+    	    
+    	}   
+
+    	
+	}
+	else
+	{
+	    skinny_log_err("I don't know this call type %d \n",callType);
+	}
+skinny_log("I get called number %s,calling number %s \n",
+    ss->called.number,ss->calling.number);
+
+	return;
+}
 
 void handle_DialedNumber(skinny_opcode_map_t* skinny_op, u8* msg,u32 len,
                             skinny_info_t* skinny_info)
@@ -1050,7 +1169,7 @@ static const skinny_opcode_map_t skinny_opcode_map[] = {
   {0x0147, handle_default_function                    , SKINNY_MSGTYPE_RESPONSE , "LineStatV2ResMessage"},
   {0x0148, handle_default_function              , SKINNY_MSGTYPE_RESPONSE , "ServiceURLStatV2ResMessage"},
   {0x0149, handle_default_function               , SKINNY_MSGTYPE_RESPONSE , "SpeedDialStatV2ResMessage"},
-  {0x014a, handle_default_function                       , SKINNY_MSGTYPE_EVENT    , "CallInfoV2Message"},
+  {0x014a, handle_callinfo2_function                       , SKINNY_MSGTYPE_EVENT    , "CallInfoV2Message"},
   {0x014b, handle_default_function                          , SKINNY_MSGTYPE_REQUEST  , "PortReqMessage"},
   {0x014c, handle_default_function                        , SKINNY_MSGTYPE_EVENT    , "PortCloseMessage"},
   {0x014d, handle_default_function                        , SKINNY_MSGTYPE_EVENT    , "QoSListenMessage"},

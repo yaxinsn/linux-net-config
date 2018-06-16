@@ -58,8 +58,8 @@ struct  person
 {
     struct in_addr  ip;
     u16             port;
-    char*           number;
-    char*           name;
+    char           number[64];
+    char           name[64];
 };
 
 #define SS_MODE_CALLING 1
@@ -67,7 +67,7 @@ struct  person
 
 struct session_info //与信令协议 sip ,skinny无关。是更高一级的应用数据。把从信令中得到的信息保存于此。
 {
-    int mode;// 1是主叫，2是被叫。
+    int mode; /* call direction   */ // 1是主叫，2是被叫。
     struct list_head node;
     struct tm ring_time;  //响玲的时间点。
 	time_t comm_time; //接通的时间点 . ack 的时间，或是ACK的ok的时间。  strptime — date and time conversion

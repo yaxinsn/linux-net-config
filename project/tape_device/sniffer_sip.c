@@ -15,6 +15,7 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <time.h>
 #include <arpa/inet.h>
 #include "log.h"
 
@@ -230,6 +231,26 @@ int __parse_msg_header_element(char* src,char* key)
     }
 	return 0;
 }
+int parse_sip_number(char* src,char** dest)
+{
+    char* p;
+    char* e;
+    if(*dest)
+        return 0;
+    p = strstr(src,"<sip:");
+    if(p)
+    {
+        e = strchr(p,'@');
+        if(e)
+        {
+            p+=strlen("<sip:");
+            *e=0;
+            *dest = strndup(p,e-p);
+            *e='@';
+        }
+    }
+    return 0;
+}
 int parse_msg_header(char* mh,struct sip_pkt* sp)
 {
 	const char* key = "Content-Length";
@@ -242,12 +263,17 @@ int parse_msg_header(char* mh,struct sip_pkt* sp)
 	if(sp->msg_hdr.call_id == NULL)
         v = __parse_msg_header_str_element(mh,"Call-ID",&sp->msg_hdr.call_id);
     
-	if(sp->msg_hdr.from == NULL)
+	if(sp->msg_hdr.from == NULL){
         v = __parse_msg_header_str_element(mh,"From",&sp->msg_hdr.from);
-    
-	if(sp->msg_hdr.to == NULL)
+        parse_sip_number(sp->msg_hdr.from,&sp->msg_hdr.from_number);
+        sip_log("calling number: <%s> \n",sp->msg_hdr.from_number);
+    }
+	if(sp->msg_hdr.to == NULL){
         v = __parse_msg_header_str_element(mh,"To",&sp->msg_hdr.to);
-	
+        parse_sip_number(sp->msg_hdr.to,&sp->msg_hdr.to_number);
+        if(sp->msg_hdr.to_number)
+            sip_log("called number: <%s> \n",sp->msg_hdr.to_number);
+	}
 	if(sp->msg_hdr.date == NULL)
         v = __parse_msg_header_str_element(mh,"Date",&sp->msg_hdr.date);
 
@@ -379,10 +405,13 @@ void _create_session(struct sip_pkt* spkt_p)
             else
                 ss->mode = SS_MODE_CALLED;
         }   
- //       ss->state = spkt_p->state;
-        ss->call_id = strdup(spkt_p->msg_hdr.call_id);
-        ss->calling.ip.s_addr = spkt_p->rtp_ip.s_addr;
-        ss->calling.port= spkt_p->rtp_port;
+        if(ss->mode == SS_MODE_CALLING)
+        {
+            ss->call_id = strdup(spkt_p->msg_hdr.call_id);
+            ss->calling.ip.s_addr = spkt_p->rtp_ip.s_addr;
+            ss->calling.port= spkt_p->rtp_port;
+            strncpy(ss->calling.number,spkt_p->msg_hdr.from_number,sizeof(ss->calling.number));
+        }
         sip_log("I create new session !!!!!!!!! callid %s \n",ss->call_id);
     }
 	else
@@ -422,7 +451,7 @@ int __get_ok_pkt_cseq(struct sip_pkt* spkt_p)
 void _update_session_for_ok(struct sip_pkt* spkt_p)
 {
     struct session_info* ss;
-    int ok_cseq;
+//    int ok_cseq;
     if(spkt_p->msg_hdr.call_id)
     {
        
@@ -438,6 +467,9 @@ void _update_session_for_ok(struct sip_pkt* spkt_p)
                 {
                     ss->called.ip.s_addr = spkt_p->rtp_ip.s_addr;
                     ss->called.port = spkt_p->rtp_port;
+                    //ss->called.number =strdup(spkt_p->msg_hdr.to_number);
+                    
+                    strncpy(ss->called.number,spkt_p->msg_hdr.to_number,sizeof(ss->called.number));
                 }
             }
             else if  (ss->mode ==SS_MODE_CALLING)
@@ -447,6 +479,10 @@ void _update_session_for_ok(struct sip_pkt* spkt_p)
                 {
                     ss->called.ip.s_addr = spkt_p->rtp_ip.s_addr;
                     ss->called.port = spkt_p->rtp_port;
+                    
+                   // ss->called.number =strdup(spkt_p->msg_hdr.to_number);
+                    
+                    strncpy(ss->called.number,spkt_p->msg_hdr.to_number,sizeof(ss->called.number));
                     ss->rtp_sniffer_tid = setup_rtp_sniffer(ss);
                 }
             }
@@ -487,8 +523,13 @@ void _update_session(struct sip_pkt* spkt_p)
                     ss->calling.ip.s_addr = spkt_p->rtp_ip.s_addr;
                     ss->calling.port = spkt_p->rtp_port;
                     ss->rtp_sniffer_tid = setup_rtp_sniffer(ss);
+                    
+                    //ss->calling.number =strdup(spkt_p->msg_hdr.from_number);
+                    
+                    strncpy(ss->calling.number,spkt_p->msg_hdr.from_number,sizeof(ss->calling.number));
                 }
             }
+ #if 0           
             else if (ss->mode == SS_MODE_CALLED && spkt_p->state == SS_OK)
             {
  //               ss->state = spkt_p->state;
@@ -510,6 +551,7 @@ void _update_session(struct sip_pkt* spkt_p)
                     ss->rtp_sniffer_tid = setup_rtp_sniffer(ss);
                 }
             }
+#endif            
             else
             {
                 sip_log_err("session (callid %s)  not update any info!\n",spkt_p->msg_hdr.call_id);
@@ -525,37 +567,7 @@ void _update_session(struct sip_pkt* spkt_p)
         }
     }
 }
-void _update_session2(struct sip_pkt* spkt_p)
-{
-    struct session_info* ss;
-    if(spkt_p->msg_hdr.call_id)
-    {
-        sip_log("debug here \n");
-        ss = si_find_session(spkt_p->msg_hdr.call_id);
-        sip_log("debug here \n");
-        if(ss != NULL)
-        {
-          
-            sip_log("I find the session (callid %s) \n",ss->call_id);
-//            ss->state = spkt_p->state;
-            if(spkt_p->body_sdp)
-            {
-                ss->called.ip.s_addr = spkt_p->rtp_ip.s_addr;
-                ss->called.port = spkt_p->rtp_port;
-                sip_log("I find the session (callid %s) \n",ss->call_id);
-                ss->rtp_sniffer_tid = setup_rtp_sniffer(ss);
-            }
-        }
-        else
-        {
-            sip_log_err("not find the session (callid %s) \n",spkt_p->msg_hdr.call_id);
-        }
-    }
-    else
-    {
-        sip_log_err(" this spkt not callid ,so bad \n");
-    }
-}
+
 
 void _close_session(struct sip_pkt* spkt_p)
 {
@@ -623,6 +635,8 @@ void __free_sip_pkt(struct sip_pkt* spkt_p)
     FREE(msg_hdr->Max_forwards);
     FREE(msg_hdr->allow);
     FREE(msg_hdr->date);
+    FREE(msg_hdr->from_number);
+    FREE(msg_hdr->to_number);
 	
     
 }
