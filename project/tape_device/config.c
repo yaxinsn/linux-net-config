@@ -23,8 +23,13 @@ config
 #include <sys/stat.h>
 #include <ctype.h>
 #include <netdb.h>
+#include <sys/socket.h>
+#include <net/ethernet.h>
+#include <linux/sockios.h>
+#include <linux/if.h>
 #include <arpa/inet.h> 
 #include <stdarg.h>
+
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/ip.h> /* superset of previous */
@@ -293,7 +298,28 @@ int get_config_tape(json_object* j_cfg,struct config_st* c )
 
 int get_eth0_mac(u8* mac)
 {
+    int fd                     = -1;
+    struct ifreq stIfreq            = {0};
+
+    fd = socket(AF_INET,SOCK_DGRAM,0);
+	if(fd < 0)
+	{
+		printf("get_eth0_mac::Create Socket Err(%s)!\n",strerror(errno));
+		return -1;
+	}
+	strcpy(stIfreq.ifr_name,"eth0");
+
+	
+	if (ioctl(fd, SIOCGIFHWADDR, &stIfreq) < 0)
+	{
+		printf("get_eth0_mac::Could not get hwaddr!\n");
+		close(fd);
+		return -1;
+	}
+	memcpy(mac, stIfreq.ifr_hwaddr.sa_data, 6);
+    close(fd);
     
+	return 0;
 }
 
 int get_config(struct config_st* c)
@@ -313,7 +339,17 @@ int get_config(struct config_st* c)
 	get_config_heart_ser(j_cfg,c);
 	get_config_hostip(j_cfg,c);
 	json_object_put(j_cfg);
-	
+
+	sprintf(c->upload_http_url, "http://%s:%d/record/box/reportOneRecord",
+	inet_ntoa(c->tape.mainip),c->tape.mainport);
+
+	get_eth0_mac(c->eth0_mac);
+
+	if(c->skinny_call.ip.s_addr == 0)
+	{
+	    c->skinny_call.ip.s_addr = c->call.ip.s_addr;
+	    c->skinny_call.port = 2000;
+	}
 	return 0;
 	
 }
@@ -342,7 +378,11 @@ int show_config(struct config_st* c)
 	log("main port %d\n",c->tape.mainport);
 	log("SPARE IP  %x\n",c->tape.spareip);
 	log("SPARE PORT  %d\n",c->tape.spareport);	
+	log("tape upload server url %s\n",c->upload_http_url);
 	
+	log("boxid  %02x:%02x:%02x:%02x:%02x:%02x\n",
+	    c->eth0_mac[0],c->eth0_mac[1],c->eth0_mac[2],
+	    c->eth0_mac[3],c->eth0_mac[4],c->eth0_mac[5]);
 	log("password :\n");
 	
 	log("pawd %s\n",c->pwd.password);

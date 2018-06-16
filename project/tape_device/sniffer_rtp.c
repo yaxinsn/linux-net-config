@@ -409,18 +409,19 @@ int upload_the_mix_file( struct rtp_session_info* n)
     int ret;
     struct upload_file_info ufi;
     char time_str[256]={0};
+    struct config_st* c = &g_config;
     
     char save_file_name[256]={0};
     
     char ring_time[256]={0};
     
-    memcpy(ufi.box_id,g_config.eth0_mac,6);
+    //memcpy(ufi.box_id,g_config.eth0_mac,6);
     
     strncpy(ufi.call_caller_number,n->calling.number,sizeof(ufi.call_caller_number));
     
     strncpy(ufi.call_callee_number,n->called.number,sizeof(ufi.call_callee_number));
  
-    if(n->call_dir =  SS_MODE_CALLING){
+    if(n->call_dir == SS_MODE_CALLING){
         sprintf(ufi.call_direction,"%d",0);
         
         strncpy(ufi.call_local_number,n->calling.number,sizeof(ufi.call_local_number));
@@ -441,8 +442,11 @@ int upload_the_mix_file( struct rtp_session_info* n)
     strftime(ring_time,256,"%Y-%m-%d-%H-%M-%S",&n->ring_time);     
     sprintf(ufi.file_name,"from_%s_to_%s_startTime_%s.mix",
             n->calling.number,n->called.number,ring_time);
-
-    ret = upload_mix_file(NULL,&ufi);
+            
+    sprintf(ufi.box_id,"%02X:%02X:%02X:%02X:%02X:%02X:%02X",
+        c->eth0_mac[0],c->eth0_mac[1],c->eth0_mac[2],
+	    c->eth0_mac[3],c->eth0_mac[4],c->eth0_mac[5]);
+    ret = upload_mix_file(c->upload_http_url,&ufi);
     return ret;
 }
 

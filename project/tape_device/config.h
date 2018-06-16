@@ -33,7 +33,7 @@ struct tapeserver_st
 
 struct password_st
 {
-    unsigned char password[32];
+    unsigned char password[128];
 };
 
 
@@ -46,6 +46,7 @@ struct config_st
 	struct tapeserver_st tape;
 	struct password_st pwd;
 	u8   eth0_mac[6];
+	char upload_http_url[1024];
 };
 int get_config(struct config_st* c);
 int show_config(struct config_st* c);

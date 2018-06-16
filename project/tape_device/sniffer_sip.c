@@ -479,9 +479,7 @@ void _update_session_for_ok(struct sip_pkt* spkt_p)
                 {
                     ss->called.ip.s_addr = spkt_p->rtp_ip.s_addr;
                     ss->called.port = spkt_p->rtp_port;
-                    
-                   // ss->called.number =strdup(spkt_p->msg_hdr.to_number);
-                    
+                                        
                     strncpy(ss->called.number,spkt_p->msg_hdr.to_number,sizeof(ss->called.number));
                     ss->rtp_sniffer_tid = setup_rtp_sniffer(ss);
                 }
@@ -522,36 +520,22 @@ void _update_session(struct sip_pkt* spkt_p)
                 {
                     ss->calling.ip.s_addr = spkt_p->rtp_ip.s_addr;
                     ss->calling.port = spkt_p->rtp_port;
-                    ss->rtp_sniffer_tid = setup_rtp_sniffer(ss);
-                    
-                    //ss->calling.number =strdup(spkt_p->msg_hdr.from_number);
+                   
                     
                     strncpy(ss->calling.number,spkt_p->msg_hdr.from_number,sizeof(ss->calling.number));
-                }
-            }
- #if 0           
-            else if (ss->mode == SS_MODE_CALLED && spkt_p->state == SS_OK)
-            {
- //               ss->state = spkt_p->state;
-                if(spkt_p->body_sdp)
-                {
-                    ss->called.ip.s_addr = spkt_p->rtp_ip.s_addr;
-                    ss->called.port = spkt_p->rtp_port;
-                }
-            }
-            else if  (ss->mode ==SS_MODE_CALLING && spkt_p->state == SS_OK)
-            {
-  //              ss->state = spkt_p->state;
-  
-                get_session_start_time(spkt_p,ss);
-                if(spkt_p->body_sdp)
-                {
-                    ss->called.ip.s_addr = spkt_p->rtp_ip.s_addr;
-                    ss->called.port = spkt_p->rtp_port;
+                    sip_log("I find the session (callid %s) calling number: %s \n",
+                            ss->call_id,ss->calling.number);
+                    
                     ss->rtp_sniffer_tid = setup_rtp_sniffer(ss);
                 }
+                else
+                {     
+                    sip_log("I find the session (callid %s) no body \n",
+                        ss->call_id);
+      
+                }
             }
-#endif            
+         
             else
             {
                 sip_log_err("session (callid %s)  not update any info!\n",spkt_p->msg_hdr.call_id);

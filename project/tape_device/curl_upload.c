@@ -74,7 +74,7 @@ void set_up_formpost(struct curl_httppost** formpost,struct curl_httppost** last
 
     curl_formadd((struct curl_httppost**)formpost,
                (struct curl_httppost**)lastptr,
-               CURLFORM_COPYNAME, "CALL_CALLEE_ENDTIME",
+               CURLFORM_COPYNAME, "CALL_ENDTIME",
                CURLFORM_COPYCONTENTS,  info->call_end_time,
                CURLFORM_END);
 
@@ -124,7 +124,8 @@ int upload_mix_file(char* server_url,struct upload_file_info* file_info)
 
     /* what URL that receives this POST */
     curl_easy_setopt(curl, CURLOPT_URL,
-                     "http://39.105.109.64:8099/record/box/reportOneRecord");
+                                        server_url);
+                  //   "http://39.105.109.64:8099/record/box/reportOneRecord");
 
     curl_easy_setopt(curl, CURLOPT_VERBOSE, 1);
 
