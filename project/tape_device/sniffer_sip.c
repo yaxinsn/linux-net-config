@@ -405,9 +405,9 @@ void _create_session(struct sip_pkt* spkt_p)
             else
                 ss->mode = SS_MODE_CALLED;
         }   
+        ss->call_id = strdup(spkt_p->msg_hdr.call_id);
         if(ss->mode == SS_MODE_CALLING)
         {
-            ss->call_id = strdup(spkt_p->msg_hdr.call_id);
             ss->calling.ip.s_addr = spkt_p->rtp_ip.s_addr;
             ss->calling.port= spkt_p->rtp_port;
             strncpy(ss->calling.number,spkt_p->msg_hdr.from_number,sizeof(ss->calling.number));
