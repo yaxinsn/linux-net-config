@@ -29,7 +29,8 @@ vpath %.c  ./voice_lib
 vpath %.h ./libs ./voice_lib
 vpath %.h  ./voice_lib
 
-all: main
+
+all: taped
 LIB=$(TARGET_DIR)/usr/lib/libjson-c.so
 
 
