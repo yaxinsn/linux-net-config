@@ -29,6 +29,8 @@
 #include <fcntl.h>
 #include <string.h>
 
+#include "ulaw_codec.h"
+
 #include "log.h"
 #include "sniffer_rtp.h"
 //#include "upload.h"
@@ -144,9 +146,10 @@ struct rtp_session_info* _rtp_find_session(pthread_t   thread_id)
 
 enum RTP_TYPE
 {
-    RTP_TYPE_PCMU = 0,//711
+    RTP_TYPE_PCMU = 0,//711u
     RTP_TYPE_PCMU_GSM = 3,
     RTP_TYPE_PCMU_G723,
+    RTP_TYPE_PCMU_PCMA = 8,
     RTP_TYPE_PCMU_G722 = 9,
     RTP_TYPE_PCMU_G729 = 18,
     
@@ -159,7 +162,7 @@ struct rtp_type_str
 };
 struct rtp_type_str g_rtp_file_perfix[] = 
 {
-    {RTP_TYPE_PCMU,"g711"},
+    {RTP_TYPE_PCMU,"g711u"},
     {RTP_TYPE_PCMU_GSM,"gsm"},
     {RTP_TYPE_PCMU_G723,"g723"},
     {RTP_TYPE_PCMU_G722,"g722"},
@@ -247,8 +250,7 @@ static int session_talking_pkt_dec722
     int mix_len;
     bool ret;
     
-    if(rty_type == RTP_TYPE_PCMU_G722)
-    {
+
     
         dest_buf = rtp_g722_decode(g722_decode,payload,payload_len,&dest_g722_len);
         if(dest_buf){
@@ -261,10 +263,29 @@ static int session_talking_pkt_dec722
             log_err("g722 decode error! \n");
             return -1;
         }
+   
+     
+     return 0;
+}
+
+static int session_talking_pkt_dec711u
+(struct rtp_session_info* rs,u8* payload, int payload_len,FILE* fp)
+{
+    int dest_g711u_len;
+    u8* dest_buf;
+    int mix_len;
+    bool ret;
+    
+    dest_buf =  ulawcodec_decode(payload,  payload_len,&dest_g711u_len);
+    
+    if(dest_buf){
+        fwrite(dest_buf,dest_g711u_len,1,fp);
+        free(dest_buf);
+        
     }
     else
     {
-        log_err("this pkt not a g722, I can't decode it \n");
+        log_err("g711u decode error! \n");
         return -1;
     }
    
@@ -297,22 +318,50 @@ static void session_talking(struct iphdr* iph,struct udphdr* udph,
     if(iph->saddr == rs->calling.ip.s_addr)
     {
        
-        rs->calling_pkt_count++;
+        //rs->calling_pkt_count++;
+        if(rs->rtp_type == RTP_TYPE_PCMU_G722)
         session_talking_pkt_dec722(rs,rtp_payload,
             rtp_len-sizeof(struct rttphdr),rs->rtp_type,
             rs->save_calling_linear_fp,rs->g722dst_called);
+        else if(rs->rtp_type == RTP_TYPE_PCMU)
+        {
+            session_talking_pkt_dec711u(rs,rtp_payload,
+            rtp_len-sizeof(struct rttphdr),
+            rs->save_calling_linear_fp);
+            
+        }
+        else
+        {
+            log_err("this pkt not a g722, g711u, I can't decode it \n");
+            return -1;
+        }
+       
         //save_rtp_frame(rs->save_calling_fp,rtp_payload,rtp_len-sizeof(struct rttphdr));
     }
 
     if(iph->saddr == rs->called.ip.s_addr)
     {
    
-        rs->called_pkt_count++;
-        
-        session_talking_pkt_dec722(rs,rtp_payload,
-            rtp_len-sizeof(struct rttphdr),rs->rtp_type,
-            rs->save_called_linear_fp,rs->g722dst_calling);
-  
+       // rs->called_pkt_count++;
+        if(rs->rtp_type == RTP_TYPE_PCMU_G722)
+        {
+            session_talking_pkt_dec722(rs,rtp_payload,
+                rtp_len-sizeof(struct rttphdr),rs->rtp_type,
+                rs->save_called_linear_fp,rs->g722dst_calling);
+        }
+        else if(rs->rtp_type == RTP_TYPE_PCMU)
+        {
+            
+            session_talking_pkt_dec711u(rs,rtp_payload,
+            rtp_len-sizeof(struct rttphdr),
+            rs->save_called_linear_fp);
+            
+        }
+        else
+        {
+            log_err("this pkt not a g722, g711u, I can't decode it \n");
+            return -1;
+        }
        // save_rtp_frame(rs->save_called_fp,rtp_payload,rtp_len-sizeof(struct rttphdr));
     }
 
@@ -376,7 +425,7 @@ int mix_the_linear_file(struct rtp_session_info* n)
         else if(reta > 0)
         {
             mix(&n->stMix,calling_buf,reta,&mix_len);
-            log("mix_len %d \n", mix_len);
+           // log("mix_len %d \n", mix_len);
         }
         
         if(retb  <= 0 )//read end
@@ -387,7 +436,7 @@ int mix_the_linear_file(struct rtp_session_info* n)
         else if(reta > 0)
         {
             mix(&n->stMix,called_buf,retb,&mix_len);
-            log("mix_len %d \n", mix_len);
+            //log("mix_len %d \n", mix_len);
         }
         fwrite(n->stMix.data,mix_len,1,dest_fp);
         if(break_flag == 3){

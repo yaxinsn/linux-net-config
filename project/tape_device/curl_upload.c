@@ -96,6 +96,12 @@ void set_up_formpost(struct curl_httppost** formpost,struct curl_httppost** last
 
 #endif
 
+static size_t server_return_funtion
+( void *ptr, size_t size, size_t nmemb, void *stream)
+{
+	memcpy((char*)stream,(char*)ptr,size*nmemb);
+	return size*nmemb;
+}
 
 
 int upload_mix_file(char* server_url,struct upload_file_info* file_info)
@@ -110,6 +116,7 @@ int upload_mix_file(char* server_url,struct upload_file_info* file_info)
   struct HttpPost *lastptr=NULL;
   struct curl_slist *headerlist=NULL;
   char buf[] = "Expect:";
+  char server_ret_msg[2048]={0};
 
   set_up_formpost((struct curl_httppost**)&formpost,(struct curl_httppost**)&lastptr,file_info);
 
@@ -131,6 +138,9 @@ int upload_mix_file(char* server_url,struct upload_file_info* file_info)
 
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headerlist);
     curl_easy_setopt(curl, CURLOPT_HTTPPOST, formpost);
+    curl_easy_setopt(curl,CURLOPT_WRITEFUNCTION,server_return_funtion);
+    
+    curl_easy_setopt(curl,CURLOPT_WRITEDATA,server_ret_msg);
 
     curl_multi_add_handle(multi_handle, curl);
 
@@ -184,6 +194,7 @@ int upload_mix_file(char* server_url,struct upload_file_info* file_info)
     /* then cleanup the formpost chain */
     curl_formfree((struct curl_httppost*)formpost);
 
+    log("server reg msg: %s \n",server_ret_msg);
     /* free slist */
     curl_slist_free_all (headerlist);
   }

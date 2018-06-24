@@ -9,7 +9,7 @@ TOOLCHAIN_DIR=/opt/gcc-linaro-arm-linux-gnueabihf-4.7-2013.03-20130313_linux/arm
 progam_src =   main.c  sniffer_sip.c  config.c sniffer_rtp.c phone_session.c sniffer_skinny.c curl_upload.c
 progam_obj =  $(progam_src:.c=.o)
 lib_src =  linux-utils.c  log.c  sniffer_lib.c  thread_msg_engine.c  wake_utils.c json.c str_lib.c 
-voice_lib_src = g722_encode.c g722_decode.c mixer.c
+voice_lib_src = g722_encode.c g722_decode.c mixer.c ulaw.c ulaw_codec.c
 
 lib_obj =  $(lib_src:.c=.o)
 voice_lib_obj =  $(voice_lib_src:.c=.o)
