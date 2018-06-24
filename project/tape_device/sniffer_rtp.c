@@ -15,6 +15,19 @@
 #include <arpa/inet.h>
 #include <arpa/inet.h>
 #include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <pcap.h>
+#include <errno.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <arpa/inet.h>
+#include <signal.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <string.h>
 
 #include "log.h"
 #include "sniffer_rtp.h"
@@ -59,8 +72,9 @@ struct rtp_session_info
     int calling_pkt_count;
     int called_pkt_count;
     int mix_count;
+    g722_decode_state_t* g722dst_calling;
 
-    g722_decode_state_t* g722dst;
+    g722_decode_state_t* g722dst_called;
     FILE* save_mix_fp; 
 
     FILE* save_calling_linear_fp; 
@@ -100,7 +114,8 @@ void _rtp_del_session(struct rtp_session_info* si)
 {
    
     pthread_mutex_lock(&rtp_ctx.head_lock);
-    g722_decode_release(si->g722dst);
+    g722_decode_release(si->g722dst_called);
+    g722_decode_release(si->g722dst_calling);
     list_del(&si->node);
     
     pthread_mutex_unlock(&rtp_ctx.head_lock);
@@ -225,7 +240,7 @@ u8* rtp_g722_decode(g722_decode_state_t* g722dst,char *src, int src_len, int* le
 
 static int session_talking_pkt_dec722
 (struct rtp_session_info* rs,u8* payload, int payload_len,
-   u8 rty_type,FILE* fp)
+   u8 rty_type,FILE* fp,g722_decode_state_t* g722_decode)
 {
     int dest_g722_len;
     u8* dest_buf;
@@ -235,7 +250,7 @@ static int session_talking_pkt_dec722
     if(rty_type == RTP_TYPE_PCMU_G722)
     {
     
-        dest_buf = rtp_g722_decode(rs->g722dst,payload,payload_len,&dest_g722_len);
+        dest_buf = rtp_g722_decode(g722_decode,payload,payload_len,&dest_g722_len);
         if(dest_buf){
             fwrite(dest_buf,dest_g722_len,1,fp);
             free(dest_buf);
@@ -278,13 +293,14 @@ static void session_talking(struct iphdr* iph,struct udphdr* udph,
         log_err("rtp pkt type %d , session rtp type %d\n",rtp_hdr->type,rs->rtp_type);
         
     }
+    
     if(iph->saddr == rs->calling.ip.s_addr)
     {
        
         rs->calling_pkt_count++;
         session_talking_pkt_dec722(rs,rtp_payload,
             rtp_len-sizeof(struct rttphdr),rs->rtp_type,
-            rs->save_calling_linear_fp);
+            rs->save_calling_linear_fp,rs->g722dst_called);
         //save_rtp_frame(rs->save_calling_fp,rtp_payload,rtp_len-sizeof(struct rttphdr));
     }
 
@@ -295,7 +311,7 @@ static void session_talking(struct iphdr* iph,struct udphdr* udph,
         
         session_talking_pkt_dec722(rs,rtp_payload,
             rtp_len-sizeof(struct rttphdr),rs->rtp_type,
-            rs->save_called_linear_fp);
+            rs->save_called_linear_fp,rs->g722dst_calling);
   
        // save_rtp_frame(rs->save_called_fp,rtp_payload,rtp_len-sizeof(struct rttphdr));
     }
@@ -733,7 +749,8 @@ pthread_t setup_rtp_sniffer(struct session_info* ss)
     memcpy(&rs->calling,&ss->calling,sizeof(struct  person));
     rs->pd = pd;
     
-    rs->g722dst = (void*)g722_decode_init((g722_decode_state_t*) rs->g722dst, G722BITSRATE, 1 /* 表明采用8000采样 */);
+    rs->g722dst_called = (void*)g722_decode_init((g722_decode_state_t*) rs->g722dst_called, G722BITSRATE, 1 /* 表明采用8000采样 */);
+    rs->g722dst_calling= (void*)g722_decode_init((g722_decode_state_t*) rs->g722dst_calling, G722BITSRATE, 1 /* 表明采用8000采样 */);
 
 #if 0
     t += sprintf(mix_file,"/tmp/%s_to_",inet_ntoa(ss->calling.ip));

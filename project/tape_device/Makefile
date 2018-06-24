@@ -38,7 +38,7 @@ $(all_src:.c=.o): %.o : %.c
 	$(CC) $(CFLAGS)  $^ -c -o $@
 
 
-main: $(progam_obj) $(lib_obj) $(voice_lib_obj)
+taped: $(progam_obj) $(lib_obj) $(voice_lib_obj)
 #	$(CC) $(LDFLAGS) -Wl,-rpath=./  -L./json-c/.libs  -ljson-c $^ $(LIB) -o $@ 
 	$(CC) $(LDFLAGS) -Wl,-rpath=./  $(CFLAGS) $^ $(LIB) -o $@ 
 #	$(CC) $(LDFLAGS) -Wl,-rpath=./  $^ -o $@ -L./ ./json-c/.libs/libjson-c.so
