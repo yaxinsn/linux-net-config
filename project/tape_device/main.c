@@ -31,12 +31,38 @@ main.c
 
 #include "log.h"
 #include "config.h"
-#include "upload.h"
+//#include "upload.h"
 #include "sniffer_sip.h"
 #include "sniffer_rtp.h"
-//#include "thread_msg_engine.h"
+
 
 struct config_st g_config;
+int init_device_hostip(void)
+{
+    struct config_st* c = &g_config;
+    char cmd[1024]={0};
+    char ip_str[32]={0};
+    char netmask_str[32]={0};
+    char gw_str[32]={0};
+    sprintf(ip_str,"%s",inet_ntoa(c->hostip.ip));
+    sprintf(netmask_str,"%s",inet_ntoa(c->hostip.netmask));
+    
+    sprintf(gw_str,"%s",inet_ntoa(c->hostip.gateway));
+    if(c->hostip.ip.s_addr !=0 
+        && c->hostip.netmask.s_addr != 0 
+        && c->hostip.netmask.s_addr != 0)
+    {
+        
+        sprintf(cmd,"/home/root/rundir/init_network.sh %s %s %s",ip_str,netmask_str,gw_str);
+        system(cmd);
+        sleep(5);
+    }
+    else
+    {
+        log_err("not set device hostip \n");
+    }
+    return 0;
+}
 void main_get_config()
 {
 	
@@ -53,6 +79,8 @@ int main(int argc,char* argv[])
 	log("test get config and upload \n");
 	main_get_config();
 	log("get config and upload \n");
+
+	init_device_hostip();
 	session_init();
 	rtp_sniffer_init();
 #if 0	
