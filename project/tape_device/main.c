@@ -70,12 +70,20 @@ void main_get_config()
 	get_config(&g_config);
 	show_config(&g_config);
 }
+FILE* main_log_fp;
 int main(int argc,char* argv[])
 {
 	//pthread_t uploader;
 	pthread_t sniffer;
 	pthread_t sniffer_skinny;
-	
+
+
+	main_log_fp = fopen(MAIN_LOG_FILE,"a+");
+    if(main_log_fp == NULL){
+        printf("main log file not open \n");
+        exit(1);
+    }
+    
 	log("test get config and upload \n");
 	main_get_config();
 	log("get config and upload \n");

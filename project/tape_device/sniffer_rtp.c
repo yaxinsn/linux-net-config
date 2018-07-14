@@ -54,10 +54,6 @@ struct rtp_session_info
  
     struct  person calling;  //sip msg header From
     struct  person called;   //sip msg header to
-    //FILE*   save_all_fp; 
-    char calling_name[256];
-    
-    char called_name[256];
     FILE*   save_calling_fp;
     FILE*   save_called_fp;
     u8     rtp_type;
@@ -85,6 +81,7 @@ struct rtp_session_info
     char calling_name_linear[256];
     
     char called_name_linear[256];
+    char mix_file_name[256];
 };
 
 
@@ -407,7 +404,7 @@ int mix_the_linear_file(struct rtp_session_info* n)
         n->calling.number,n->called.number,ring_time);
         
     log("save file name %s \n",save_file_name);    
-    
+    sprintf(n->mix_file_name,"%s",save_file_name);
     dest_fp = fopen(save_file_name,"w");
 
     while(1)
@@ -441,13 +438,12 @@ int mix_the_linear_file(struct rtp_session_info* n)
         fwrite(n->stMix.data,mix_len,1,dest_fp);
         if(break_flag == 3){
             
-             log("debug break it\n");
+             log("read file end and finish the mix  \n");
             break;
         }
     }
     fclose(dest_fp);
     close(fp_calling);
-    log("debug \n");
     close(fp_called);
     return 0;
 }
@@ -546,6 +542,10 @@ static void sighandler(int s)
 
             upload_the_mix_file(n);
            
+             remove(n->called_name_linear);
+             remove(n->calling_name_linear);
+             remove(n->mix_file_name);
+             
             _rtp_del_session(n);
         }
         else
@@ -732,9 +732,11 @@ static pcap_t* init_sniffer_rtp(struct session_info* ss)
 		log("open_pcap_file failed ! \n");
 		return NULL;
 	}	
-	sprintf(filter,"udp and host %s and port %d ",
+	sprintf(filter,"\(udp and host %s and port %d \) or \(udp and host %s and port %d \) ",
 	    inet_ntoa(ss->calling.ip),
-	    ss->calling.port);
+	    ss->calling.port,
+	       inet_ntoa(ss->called.ip),
+	    ss->called.port);
 
 	if(sniffer_setfilter(pd,filter) <0){
 	    log("rtp sniffer set filter failed!\n");
@@ -859,5 +861,6 @@ void rtp_sniffer_init(void)
 {
 
     INIT_LIST_HEAD(&rtp_ctx.rtp_head);
+    ulawcodec_init();
 
 }

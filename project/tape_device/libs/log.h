@@ -8,24 +8,27 @@
 
 void _logger_file(const char* file_name, const char* func, int line, const char* fmt,...);
 
+
+void _logger_file2
+(FILE* log_fp,const char* file_name, const char* func, int line, const char* fmt,...);
+
+
+
+extern FILE* main_log_fp;
+#define MAIN_LOG_FILE "/home/root/hzivy-main.log"
+
 #define log(fmt,...)  \
-    _logger_file("/tmp/hzivy-main.log",__func__,__LINE__,fmt,##__VA_ARGS__);  
+    _logger_file2(main_log_fp,MAIN_LOG_FILE,__func__,__LINE__,fmt,##__VA_ARGS__);  
     
 #define log_err(fmt,...)  \
-    _logger_file("/tmp/hzivy-main.log",__func__,__LINE__,"ERROR| "fmt,##__VA_ARGS__); 
+    _logger_file2(main_log_fp,MAIN_LOG_FILE,__func__,__LINE__,"ERROR| "fmt,##__VA_ARGS__); 
 
 
 #define log_errno(fmt,...)  \
-    _logger_file("/tmp/hzivy-main.log",__func__,__LINE__,"ERROR| errnoinfo <%s> | "fmt,strerror(errno),##__VA_ARGS__); 
+    _logger_file2(main_log_fp,MAIN_LOG_FILE,__func__,__LINE__,"ERROR| errnoinfo <%s> | "fmt,strerror(errno),##__VA_ARGS__); 
 
 
 	
-#define sip_log(fmt,...)  \
-    _logger_file("/tmp/hzivy-sip.log",__func__,__LINE__,fmt,##__VA_ARGS__);  
-
-
-#define sip_log_err(fmt,...)  \
-						sip_log("ERROR|"fmt,##__VA_ARGS__); 
 
 #define FREE(x)  do { if(x != NULL) free(x); x=NULL;} while(0);     
 

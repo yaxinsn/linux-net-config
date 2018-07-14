@@ -20,7 +20,9 @@ char* find_key_from_line(const char* line,const char* key,int* v_len,const char*
     if(p != NULL)
     {
         p+=strlen(key);
-	    v =p+strlen(delim);
+        if(delim != NULL)
+	        v =p+strlen(delim);
+	        
 	    p = strstr(v,"\r\n");
 	    if(p != NULL)
 	    {

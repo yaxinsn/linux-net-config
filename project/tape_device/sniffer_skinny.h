@@ -24,9 +24,11 @@
 /*skinny portorol  used Little-Endian */
 /*skinny portorol  used Little-Endian */
 /*skinny portorol  used Little-Endian */
-	
+extern FILE* skinny_log_fp;
+#define SKINNY_LOG_FILE "/home/root/hzivy-skinny.log"
+
 #define skinny_log(fmt,...)  \
-    _logger_file("/tmp/hzivy-skinny.log",__func__,__LINE__,fmt,##__VA_ARGS__);  
+    _logger_file2(skinny_log_fp,SKINNY_LOG_FILE ,__func__,__LINE__,fmt,##__VA_ARGS__);  
 
 
 #define skinny_log_err(fmt,...)  \

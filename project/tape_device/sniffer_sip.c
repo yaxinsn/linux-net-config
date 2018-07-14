@@ -35,6 +35,14 @@
 
 extern struct config_st g_config;
 
+FILE* sip_log_fp = NULL;
+#define SIP_LOG_FILE "/home/root/hzivy-sip.log"
+#define sip_log(fmt,...)  \
+    _logger_file2(sip_log_fp,SIP_LOG_FILE,__func__,__LINE__,fmt,##__VA_ARGS__);  
+
+
+#define sip_log_err(fmt,...)  \
+						sip_log("ERROR|"fmt,##__VA_ARGS__); 
 
 /**************************session lib end ****************************/
 /*
@@ -131,13 +139,16 @@ int parse_sdp_connection_info(char* p, struct sip_pkt* sp)
 {
     int count;
     char** media_ele;
-    if(NULL == split_line_next(p))
-        return -1;
+
     media_ele = parse_tokens(p,&count);
     if(media_ele != NULL && count >= 3){
         sip_log("find the ip info from conection of sdp : %s %s %s \n",
         media_ele[0],media_ele[1],media_ele[2]);
        inet_aton(media_ele[2], &sp->rtp_ip );
+    }
+    else
+    {
+        sip_log_err("failed \n");
     }
     FREE(media_ele);
 
@@ -150,16 +161,112 @@ int parse_sdp_media_dest(char* p,struct sip_pkt* sp)
     // media_type Media_port Medai_protocol fromat format 
     int count;
     char** media_ele;
-    if(NULL == split_line_next(p))
-        return -1;
     media_ele = parse_tokens(p,&count);
     if(media_ele != NULL && count >= 2){
-        sip_log("fidn the  port info from media of sdp : %s %s \n",media_ele[0],media_ele[1]);
+        sip_log("find the  port info from media of sdp : %s %s \n",media_ele[0],media_ele[1]);
         sp->rtp_port = atoi(media_ele[1]);
+        if (strcmp(media_ele[0],"audio") != 0)
+        {
+            sip_log_err("media type : %s\n",media_ele[0]);
+            FREE(media_ele);
+            return 1;
+        }
+    }
+    else
+    {        
+        FREE(media_ele);
+        return -1;
     }
     FREE(media_ele);
     return 0;
 }
+char* __find_msg_body_key(const char* src,const char* key,int* v_len)
+{
+    return find_key_from_line(src,key,v_len,NULL);
+
+}
+const char* __parse_msg_heade_body_str_element
+(const char* src,const char* key,char** dest)
+{
+    int len=0;
+    char* v;
+    v = __find_msg_body_key(src,key,&len);
+    if(v){
+    
+        *dest = strndup(v,len);
+	    sip_log(" %s=%s \n",key,*dest);
+    }
+    else
+    {
+	    sip_log(" not find %s\n",key);
+        
+    }
+    return v;
+}
+
+int parse_msg_body(struct sip_pkt* sp)
+{
+    
+    char* b = sp->sip_msg_body;
+    char* media_line = NULL;
+    const char* origin_media_line;
+    char* connect_line = NULL;
+    const char* origin_connect_line;
+    int ret;
+    int offset;
+    int flag = 0;
+    
+	//printf("%s:%d \n",__func__,__LINE__);
+    origin_media_line = __parse_msg_heade_body_str_element(b,"m=",&media_line);
+	//printf("%s:%d \n",__func__,__LINE__);
+
+start:
+    if(media_line == NULL)
+    {
+        sip_log_err("not find media line\n");
+        return -1;
+    }
+    ret = parse_sdp_media_dest(media_line,sp);
+    if(ret == 0)
+    {
+        sip_log("find media line and the audio \n");
+        goto end;
+    }
+    else if(ret == -1){
+        sip_log_err("parse media element failed\n");
+        FREE(media_line);
+        return -1;
+    }
+    else if(ret == 1)
+    {
+        flag =1;
+        sip_log_err("reparse next media line \n");
+        offset = strlen(media_line);
+        FREE(media_line);
+        origin_media_line = __parse_msg_heade_body_str_element
+            (origin_media_line+offset,"m=",&media_line);
+        goto start;    
+    }
+end:
+    if(flag == 1)
+    {
+        offset = strlen(media_line);
+      //  printf("%s \n",origin_media_line+offset);
+        origin_connect_line = __parse_msg_heade_body_str_element
+            (origin_media_line+offset,"c=",&connect_line);
+        ret = parse_sdp_connection_info(connect_line,sp);
+        FREE(connect_line);
+    }
+    else
+    {
+        origin_connect_line = __parse_msg_heade_body_str_element
+            (b,"c=",&connect_line);
+        ret = parse_sdp_connection_info(connect_line,sp);
+        FREE(connect_line);
+    }
+    return 0;
+}
+#if 0
 int parse_msg_body(struct sip_pkt* sp)
 {
     //SIP body, 也许可以包含各种协议数据，SDP是其中一种，我们主要是解析SDP.
@@ -191,14 +298,14 @@ int parse_msg_body(struct sip_pkt* sp)
     }
     return 0;
 }
-
+#endif
 //return value and length of value
-char* __find_msg_hdr_key(char* mh,const char* key,int* v_len)
+char* __find_msg_hdr_key(const char* mh,const char* key,int* v_len)
 {
     return find_key_from_line(mh,key,v_len,": ");
 
 }
-char* __parse_msg_header_str_element(char* src,const char* key,char** dest)
+char* __parse_msg_header_str_element(const char* src,const char* key,char** dest)
 {
     int len=0;
     char* v;
@@ -826,6 +933,11 @@ pthread_t sniffer_sip_start(void)
 {
 	pthread_t tid;
 
+    sip_log_fp = fopen(SIP_LOG_FILE,"a+");
+    if(sip_log_fp == NULL){
+        printf("sip log file not open \n");
+        exit(1);
+    }
 	tid = __sniffer_sip_start();
     sip_log("%s:%d tid %d\n",__func__,__LINE__,tid);
 	return tid;

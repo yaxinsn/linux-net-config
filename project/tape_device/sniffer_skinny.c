@@ -1371,10 +1371,18 @@ pthread_t __sniffer_skinny_start(void)
 }
 
 
+FILE* skinny_log_fp;
 
 pthread_t sniffer_skinny_start(void)
 {
 	pthread_t tid;
+
+    
+    skinny_log_fp = fopen(SKINNY_LOG_FILE,"a+");
+    if(skinny_log_fp == NULL){
+        printf("skinny log file not open \n");
+        exit(1);
+    }
 
 	tid = __sniffer_skinny_start();
     skinny_log("%s:%d tid %d\n",__func__,__LINE__,tid);
