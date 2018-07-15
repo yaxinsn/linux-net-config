@@ -722,6 +722,8 @@ static void* sniffer_rtp_loop1(void* arg)
 static pcap_t* init_sniffer_rtp(struct session_info* ss)
 {
 	char filter[200] = {0};
+	char callingip_str[32] = {0};
+	char calledip_str[32] = {0};
 	
     pcap_t* pd=0;
     signal(SIGQUIT, sighandler);
@@ -732,10 +734,12 @@ static pcap_t* init_sniffer_rtp(struct session_info* ss)
 		log("open_pcap_file failed ! \n");
 		return NULL;
 	}	
+	sprintf(callingip_str,"%s",inet_ntoa(ss->calling.ip));
+	sprintf(calledip_str,"%s",inet_ntoa(ss->called.ip));
 	sprintf(filter,"\(udp and host %s and port %d \) or \(udp and host %s and port %d \) ",
-	    inet_ntoa(ss->calling.ip),
+	    callingip_str,
 	    ss->calling.port,
-	       inet_ntoa(ss->called.ip),
+	       calledip_str,
 	    ss->called.port);
 
 	if(sniffer_setfilter(pd,filter) <0){
