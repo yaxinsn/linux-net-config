@@ -146,7 +146,7 @@ enum RTP_TYPE
     RTP_TYPE_PCMU = 0,//711u
     RTP_TYPE_PCMU_GSM = 3,
     RTP_TYPE_PCMU_G723,
-    RTP_TYPE_PCMU_PCMA = 8,
+    RTP_TYPE_PCMU_PCMA = 8, //711a
     RTP_TYPE_PCMU_G722 = 9,
     RTP_TYPE_PCMU_G729 = 18,
     
@@ -285,10 +285,37 @@ static int session_talking_pkt_dec711u
         log_err("g711u decode error! \n");
         return -1;
     }
+
    
      
      return 0;
 }
+static int session_talking_pkt_dec711a
+(struct rtp_session_info* rs,u8* payload, int payload_len,FILE* fp)
+{
+    int dest_g711u_len;
+    u8* dest_buf;
+    int mix_len;
+    bool ret;
+    
+    dest_buf =  alawcodec_decode(payload,  payload_len,&dest_g711u_len);
+    
+    if(dest_buf){
+        fwrite(dest_buf,dest_g711u_len,1,fp);
+        free(dest_buf);
+        
+    }
+    else
+    {
+        log_err("g711a decode error! \n");
+        return -1;
+    }
+
+   
+     
+     return 0;
+}
+
 static void session_talking(struct iphdr* iph,struct udphdr* udph,
     struct rtp_session_info* rs)
 {
@@ -327,6 +354,13 @@ static void session_talking(struct iphdr* iph,struct udphdr* udph,
             rs->save_calling_linear_fp);
             
         }
+        else if (rs->rtp_type == RTP_TYPE_PCMU_PCMA)
+        {
+            session_talking_pkt_dec711a(rs,rtp_payload,
+            rtp_len-sizeof(struct rttphdr),
+            rs->save_calling_linear_fp);
+            
+        }
         else
         {
             log_err("this pkt not a g722, g711u, I can't decode it \n");
@@ -350,6 +384,14 @@ static void session_talking(struct iphdr* iph,struct udphdr* udph,
         {
             
             session_talking_pkt_dec711u(rs,rtp_payload,
+            rtp_len-sizeof(struct rttphdr),
+            rs->save_called_linear_fp);
+            
+        }
+        else if(rs->rtp_type == RTP_TYPE_PCMU_PCMA)
+        {
+            
+            session_talking_pkt_dec711a(rs,rtp_payload,
             rtp_len-sizeof(struct rttphdr),
             rs->save_called_linear_fp);
             
@@ -866,5 +908,6 @@ void rtp_sniffer_init(void)
 
     INIT_LIST_HEAD(&rtp_ctx.rtp_head);
     ulawcodec_init();
+    ast_alaw_init();
 
 }

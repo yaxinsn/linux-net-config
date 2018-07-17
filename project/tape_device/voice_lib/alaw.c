@@ -43,7 +43,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision: 213179 $")
 #ifndef G711_NEW_ALGORITHM
 #define AMI_MASK 0x55
 
-static _inline unsigned char linear2alaw(short int linear)
+static  unsigned char linear2alaw(short int linear)
 {
 	int mask;
 	int seg;
@@ -117,7 +117,7 @@ static unsigned char linear2alaw(short sample, int full_coding)
 #endif
 
 #ifndef G711_NEW_ALGORITHM
-static _inline short int alaw2linear (unsigned char alaw)
+static  short int alaw2linear (unsigned char alaw)
 {
 	int i;
 	int seg;

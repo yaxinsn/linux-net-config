@@ -22,7 +22,8 @@ char* find_key_from_line(const char* line,const char* key,int* v_len,const char*
         p+=strlen(key);
         if(delim != NULL)
 	        v =p+strlen(delim);
-	        
+	    else
+	        v=p;
 	    p = strstr(v,"\r\n");
 	    if(p != NULL)
 	    {

@@ -10,7 +10,8 @@ progam_src =   main.c  sniffer_sip.c  config.c sniffer_rtp.c phone_session.c sni
 progam_obj =  $(progam_src:.c=.o)
 lib_src =  linux-utils.c  log.c  sniffer_lib.c  thread_msg_engine.c  wake_utils.c json.c str_lib.c 
 voice_lib_src = g722_encode.c g722_decode.c mixer.c ulaw.c ulaw_codec.c
-
+voice_lib_src+=alaw.c alaw_codec.c
+ 
 lib_obj =  $(lib_src:.c=.o)
 voice_lib_obj =  $(voice_lib_src:.c=.o)
 
@@ -45,4 +46,4 @@ taped: $(progam_obj) $(lib_obj) $(voice_lib_obj)
 
 
 clean:
-	rm main *.o -f
+	rm taped *.o -f

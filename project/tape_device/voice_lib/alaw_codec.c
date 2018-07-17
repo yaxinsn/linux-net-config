@@ -1,6 +1,6 @@
 
-#include "ulaw.h"
-#include "ulaw_codec.h"
+#include "alaw.h"
+#include "alaw_codec.h"
 
 
 
@@ -8,15 +8,15 @@
 #include <stdlib.h>
 
 
-#include "ulaw_codec.h"
+#include "alaw_codec.h"
 
-void ulawcodec_init()
+void alawcodec_init()
 {
-	ast_ulaw_init();
+	ast_alaw_init();
 }
 
 
-char* ulawcodec_encode(char *src, int src_len, int* len) {
+char* alawcodec_encode(char *src, int src_len, int* len) {
 
 	int samples = (src_len)/2;
 	if(NULL==src) 
@@ -30,13 +30,12 @@ char* ulawcodec_encode(char *src, int src_len, int* len) {
 	char* dst=(char*)char_dst;
 
 	while (samples --)
-		*dst++ = AST_LIN2MU(*int16_src++);
+		*dst++ = AST_LIN2A(*int16_src++);
 	return char_dst;
 
 }
 
-
-char* ulawcodec_decode(char *src, int src_len, int* len) {
+char* alawcodec_decode(char *src, int src_len, int* len) {
 	
 	int samples = src_len;
 	if(NULL==src) 
@@ -49,7 +48,7 @@ char* ulawcodec_decode(char *src, int src_len, int* len) {
 	int16_t* dst=(int16_t*)char_dst;
 
 	while (samples --)
-		*dst++ = AST_MULAW(*uc_src++);
+		*dst++ = AST_ALAW(*uc_src++);
 
 	return char_dst;
 }

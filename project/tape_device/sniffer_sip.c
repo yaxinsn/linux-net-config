@@ -776,11 +776,13 @@ int handle_sip_pkt_content( struct udphdr* udph)
 		parse_msg_header(mesg_header,spkt_p);
 	}
 	//3, message body.
+	
 	if ((spkt_p->body_sdp)&&(spkt_p->sip_msg_body))
 	    parse_msg_body(spkt_p);
 
 
 	sync_session(spkt_p);
+	
 	__free_sip_pkt(spkt_p);
 	free(sip);//add it ,2017.11.12 --需要再仔细检查它。
 	return 0;
