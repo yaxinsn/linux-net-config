@@ -43,6 +43,19 @@
 #include "phone_session.h"
 
 extern struct config_st g_config;
+struct linear_mix_list_st
+{
+    
+    struct list_head* linear_buf_list;
+    
+    struct list_head* _mix_list;
+    
+    struct list_head  _list_a;
+    struct list_head  _list_b;
+    u32 _pkt_count;
+    int mix_ready_flag;
+    
+};
 struct rtp_session_info
 {
     
@@ -67,8 +80,6 @@ struct rtp_session_info
 
 /* 2018-6-10 */
     struct mixer stMix;
-    int calling_pkt_count;
-    int called_pkt_count;
     int mix_count;
     g722_decode_state_t* g722dst_calling;
 
@@ -82,7 +93,37 @@ struct rtp_session_info
     
     char called_name_linear[256];
     char mix_file_name[256];
+
+     
+     int calling_pkt_count;
+     int called_pkt_count;
+  #if 0   
+     struct list_head* p_calling_linear_buf_list;
+     struct list_head*  p_called_linear_buf_list;
+     
+     struct list_head  calling_linear_buf_list_a;
+     struct list_head  called_linear_buf_list_a;
+     struct list_head  calling_linear_buf_list_b;
+     struct list_head  called_linear_buf_list_b;
+
+     
+     struct list_head* p_calling_linear_buf_mix_list;
+     struct list_head*  p_called_linear_buf_mix_list;
+#endif
+     struct linear_mix_list_st calling_mix_list_st;
+
+     struct linear_mix_list_st called_mix_list_st;
+
+     int mix_file_frag_count;
+     int session_id;
 };
+
+typedef struct linear_buf_st
+{    
+    struct list_head node;
+    int len;
+    u8*  p_buf;
+}linear_buf;
 
 
 struct rtp_ctx_t
@@ -90,6 +131,7 @@ struct rtp_ctx_t
     pthread_mutex_t head_lock;  //sync
     
     struct list_head rtp_head;
+    u32     serial_no;
 
 };
 struct rtp_ctx_t rtp_ctx;
@@ -244,7 +286,7 @@ static int session_talking_pkt_dec722
 {
     int dest_g722_len;
     u8* dest_buf;
-    int mix_len;
+    //int mix_len;
     bool ret;
     
 
@@ -342,11 +384,11 @@ static void session_talking(struct iphdr* iph,struct udphdr* udph,
     if(iph->saddr == rs->calling.ip.s_addr)
     {
        
-        //rs->calling_pkt_count++;
+        rs->calling_pkt_count++;
         if(rs->rtp_type == RTP_TYPE_PCMU_G722)
         session_talking_pkt_dec722(rs,rtp_payload,
             rtp_len-sizeof(struct rttphdr),rs->rtp_type,
-            rs->save_calling_linear_fp,rs->g722dst_called);
+            rs->save_calling_linear_fp,rs->g722dst_calling);
         else if(rs->rtp_type == RTP_TYPE_PCMU)
         {
             session_talking_pkt_dec711u(rs,rtp_payload,
@@ -366,19 +408,17 @@ static void session_talking(struct iphdr* iph,struct udphdr* udph,
             log_err("this pkt not a g722, g711u, I can't decode it \n");
             return -1;
         }
-       
-        //save_rtp_frame(rs->save_calling_fp,rtp_payload,rtp_len-sizeof(struct rttphdr));
     }
 
     if(iph->saddr == rs->called.ip.s_addr)
     {
    
-       // rs->called_pkt_count++;
+        rs->called_pkt_count++;
         if(rs->rtp_type == RTP_TYPE_PCMU_G722)
         {
             session_talking_pkt_dec722(rs,rtp_payload,
                 rtp_len-sizeof(struct rttphdr),rs->rtp_type,
-                rs->save_called_linear_fp,rs->g722dst_calling);
+                rs->save_called_linear_fp,rs->g722dst_called);
         }
         else if(rs->rtp_type == RTP_TYPE_PCMU)
         {
@@ -401,10 +441,276 @@ static void session_talking(struct iphdr* iph,struct udphdr* udph,
             log_err("this pkt not a g722, g711u, I can't decode it \n");
             return -1;
         }
-       // save_rtp_frame(rs->save_called_fp,rtp_payload,rtp_len-sizeof(struct rttphdr));
     }
 
-    //save_rtp_frame(rs->save_all_fp,rttp_payload,rtp_len-sizeof(struct rttphdr));
+}
+//////////////////////////////////////////////////
+
+static int session_talking_pkt_dec722_2
+(struct rtp_session_info* rs,u8* payload, int payload_len,
+   g722_decode_state_t* g722_decode, linear_buf* lb)
+{
+    int dest_g722_len;
+    u8* dest_buf;
+    //int mix_len;
+    bool ret;
+    
+    dest_buf = rtp_g722_decode(g722_decode,payload,payload_len,&dest_g722_len);
+    if(dest_buf){
+        lb->len = dest_g722_len;
+        lb->p_buf = dest_buf;
+        //fwrite(dest_buf,dest_g722_len,1,fp);
+        //free(dest_buf);
+        
+    }
+    else
+    {
+        log_err("g722 decode error! \n");
+        return -1;
+    }
+   
+     
+     return 0;
+}
+
+static int session_talking_pkt_dec711u_2
+(struct rtp_session_info* rs,u8* payload, int payload_len,linear_buf* lb)
+{
+    int dest_g711u_len;
+    u8* dest_buf;
+    int mix_len;
+    bool ret;
+    
+    dest_buf =  ulawcodec_decode(payload,  payload_len,&dest_g711u_len);
+    
+    if(dest_buf){
+        lb->len = dest_g711u_len;
+        lb->p_buf = dest_buf;
+        
+    }
+    else
+    {
+        log_err("g711u decode error! \n");
+        return -1;
+    }
+
+   
+     
+     return 0;
+}
+static int session_talking_pkt_dec711a_2
+(struct rtp_session_info* rs,u8* payload, int payload_len,linear_buf* lb)
+{
+    int dest_g711u_len;
+    u8* dest_buf;
+    int mix_len;
+    bool ret;
+    
+    dest_buf =  alawcodec_decode(payload,  payload_len,&dest_g711u_len);
+    
+    if(dest_buf){
+        lb->len = dest_g711u_len;
+        lb->p_buf = dest_buf;
+        
+    }
+    else
+    {
+        log_err("g711a decode error! \n");
+        return -1;
+    }
+
+   
+     
+     return 0;
+}
+
+static linear_buf* session_talking_pkt_to_linear
+(struct rtp_session_info* rs,u8* payload, int payload_len,
+   u8 rty_type,g722_decode_state_t* g722_decode)
+{
+   // int dest_g722_len;
+   // u8* dest_buf;
+ //   int mix_len;
+    bool ret;
+    linear_buf*   lb; 
+    lb = malloc(sizeof(linear_buf));
+    if(lb == NULL)
+    {
+        log_err("malloc lb is failed \n");
+        return NULL;
+    }
+    memset(lb,0,sizeof(linear_buf));
+    if(rs->rtp_type == RTP_TYPE_PCMU_G722)
+            session_talking_pkt_dec722_2(rs,payload,
+                payload_len,g722_decode, lb);
+    else if(rs->rtp_type == RTP_TYPE_PCMU)
+    {
+        session_talking_pkt_dec711u_2(rs,payload,
+        payload_len,lb);
+        
+    }
+    else if (rs->rtp_type == RTP_TYPE_PCMU_PCMA)
+    {
+        session_talking_pkt_dec711a_2(rs,payload,
+        payload_len,lb);
+        
+    }
+    else
+    {
+        log_err("this pkt not a g722, g711u, I can't decode it \n");
+        return NULL;
+    }
+
+   
+     
+     return lb;
+}
+int linear_buf_mix(struct mixer* mix_engine,char* calling,
+    int calling_len,char* called,int called_len,int* mix_len)
+{     
+    mix(mix_engine,calling,calling_len,&mix_len);
+    mix(mix_engine,called,called_len,&mix_len);
+    return 0;
+}
+//6000  pkt == 120s 
+#define   MIX_BUF_COUNT  6000 // 
+int linear_list_mix(struct rtp_session_info* rs)
+{
+    struct linear_mix_list_st* list_st_a = &rs->calling_mix_list_st;
+    struct linear_mix_list_st* list_st_b = &rs->called_mix_list_st;
+    struct list_head* _mix_list_a = list_st_a->_mix_list;
+    struct list_head* _mix_list_b = list_st_b->_mix_list;
+    struct mixer* mix_engine = &rs->stMix;
+    linear_buf*   lb_a;
+    linear_buf*   lb_b;
+    int mix_len;
+    char save_file_name[256] = {0};
+    char ring_time[256] = {0};
+    FILE* dest_fp;
+    int tttt = 0;
+    strftime(ring_time,256,"%Y-%m-%d-%H-%M-%S",&rs->ring_time);
+    
+    sprintf(save_file_name,"/tmp/from_%s_to_%s_startTime_%s_No_%d_fragid_%d.mix",
+            rs->calling.number,rs->called.number,ring_time,
+            rs->session_id,rs->mix_file_frag_count);
+            
+        log("save file name %s \n",save_file_name);    
+        sprintf(rs->mix_file_name,"%s",save_file_name);
+        dest_fp = fopen(save_file_name,"w");
+
+    do
+    {
+        if(!list_empty(_mix_list_a)){
+            lb_a = list_first_entry(_mix_list_a, typeof(*lb_a), node);
+            mix(mix_engine,lb_a->p_buf,lb_a->len,&mix_len);
+            list_del(&lb_a->node);
+            FREE(lb_a->p_buf);
+            FREE(lb_a);
+        }
+        if(!list_empty(_mix_list_b)){
+            lb_b = list_first_entry(_mix_list_b, typeof(*lb_b), node);
+            mix(mix_engine,lb_b->p_buf,lb_b->len,&mix_len);
+            list_del(&lb_b->node);
+            FREE(lb_b->p_buf);
+            FREE(lb_b);
+        }
+        tttt++;
+        fwrite(rs->stMix.data,mix_len,1,dest_fp);
+    } while((!list_empty(_mix_list_a))||(!list_empty(_mix_list_b)));
+    printf("%s:%d ttt %d \n",__func__,__LINE__,tttt);
+
+    fclose(dest_fp);
+    
+}
+static  int linear_buf_save_to_list(
+    linear_buf*   lb,
+    struct linear_mix_list_st* list_st)
+{
+
+    list_st->_pkt_count++;
+    if(lb != NULL)
+    {
+        list_add_tail(&lb->node,list_st->linear_buf_list);
+    }
+    if( (list_st->_pkt_count % MIX_BUF_COUNT) == 0)
+    {
+       
+        list_st->_mix_list=
+            list_st->linear_buf_list;
+
+        if(list_st->linear_buf_list ==
+            &list_st->_list_a)
+            list_st->linear_buf_list = &list_st->_list_b;
+        else
+            list_st->linear_buf_list = &list_st->_list_a;
+            
+        list_st->mix_ready_flag = 1;
+        return 1;
+    }
+    return 0;
+}
+static void session_talking_2(struct iphdr* iph,struct udphdr* udph,
+    struct rtp_session_info* rs)
+{
+    u8* rtp_pkt = (u8*)(udph+1);
+    int rtp_len = ntohs(udph->len)-8;
+    u8* rtp_payload = NULL;
+    struct rttphdr* rtp_hdr;
+    rtp_hdr = (struct rttphdr*)rtp_pkt;
+    linear_buf*   lb; 
+   // struct phone_msg* msg;
+    rtp_payload = rtp_pkt+sizeof(struct rttphdr);
+    if(rs->rtp_type == 1)
+    {
+        rs->rtp_type = rtp_hdr->type;
+        
+        log("get a rty_type firstly %d \n",rtp_hdr->type);
+    }
+    if(rs->rtp_type != rtp_hdr->type)
+    {
+        log_err("rtp pkt type %d , session rtp type %d\n",rtp_hdr->type,rs->rtp_type);
+        
+    }
+    
+    if(iph->saddr == rs->calling.ip.s_addr)
+    {
+       
+        rs->calling_pkt_count++;
+        lb = session_talking_pkt_to_linear(rs,rtp_payload,
+            rtp_len-sizeof(struct rttphdr),
+            rs->rtp_type,rs->g722dst_calling);
+
+        linear_buf_save_to_list(lb,&rs->calling_mix_list_st);
+
+    }
+    else if(iph->saddr == rs->called.ip.s_addr)
+    {
+   
+        rs->called_pkt_count++;
+        
+        lb = session_talking_pkt_to_linear(rs,rtp_payload,
+            rtp_len-sizeof(struct rttphdr),
+            rs->rtp_type,rs->g722dst_called);
+        linear_buf_save_to_list(lb,&rs->called_mix_list_st);
+    }
+    
+    if((rs->called_mix_list_st.mix_ready_flag == 1) 
+        &&(rs->calling_mix_list_st.mix_ready_flag == 1))
+    {
+
+    
+    printf("---%s:%d rs->mix_file_frag_count %d "
+    "called_mix_list_st pkt count %d  calling _pkt_count %d \n",
+        __func__,__LINE__,rs->mix_file_frag_count,
+        rs->called_mix_list_st._pkt_count,
+        rs->calling_mix_list_st._pkt_count);
+        linear_list_mix(rs);
+        rs->mix_file_frag_count++;
+        
+        rs->called_mix_list_st.mix_ready_flag = 0;
+        rs->calling_mix_list_st.mix_ready_flag = 0;
+    }
+    
 }
 
 /****************************************************/
@@ -552,7 +858,17 @@ int upload_the_mix_file( struct rtp_session_info* n)
     ret = upload_mix_file(c->upload_http_url,&ufi);
     return ret;
 }
+void handler_last_linear_list(struct rtp_session_info* n)
+{
 
+    n->calling_mix_list_st._mix_list = 
+        n->calling_mix_list_st.linear_buf_list; 
+
+    n->called_mix_list_st._mix_list = 
+        n->called_mix_list_st.linear_buf_list;
+       
+     linear_list_mix(n);
+}
 static void sighandler(int s)
 {
         int retval = 3;
@@ -580,13 +896,15 @@ static void sighandler(int s)
             if(n->save_called_linear_fp)
                 fclose(n->save_called_linear_fp);
 
-            mix_the_linear_file(n);    
 
-            upload_the_mix_file(n);
+            
+           // mix_the_linear_file(n);    
+
+         //   upload_the_mix_file(n);
            
-             remove(n->called_name_linear);
-             remove(n->calling_name_linear);
-             remove(n->mix_file_name);
+           //  remove(n->called_name_linear);
+          //   remove(n->calling_name_linear);
+          //   remove(n->mix_file_name);
              
             _rtp_del_session(n);
         }
@@ -712,10 +1030,8 @@ void handle_rtp(struct iphdr* iph,struct udphdr* udph,void* arg)
 
 	struct rtp_session_info* rs = arg;
 
-    
-
-    //struct session_info* ss = (struct session_info*)arg;
-    session_talking( iph,udph,rs);
+  //  session_talking( iph,udph,rs);
+  session_talking_2( iph,udph,rs);
 }
 static void sniffer_handle_rtp(u_char * user, const struct pcap_pkthdr * packet_header, const u_char * packet_content)
 {
@@ -834,8 +1150,18 @@ pthread_t setup_rtp_sniffer(struct session_info* ss)
         log_err("rtp_new_session failed\n");
         
     }
-    //rs->session = ss;
+    INIT_LIST_HEAD(&rs->calling_mix_list_st._list_a);
+    INIT_LIST_HEAD(&rs->calling_mix_list_st._list_b);
+    rs->calling_mix_list_st.linear_buf_list = 
+        &rs->calling_mix_list_st._list_a;
     
+
+    INIT_LIST_HEAD(&rs->called_mix_list_st._list_a);
+    INIT_LIST_HEAD(&rs->called_mix_list_st._list_b);
+
+     rs->called_mix_list_st.linear_buf_list = 
+        &rs->called_mix_list_st._list_a;
+
     ss->start_time_stamp = a;
     rs->start_time_stamp = a;
     rs->call_dir = ss->mode;
@@ -887,6 +1213,8 @@ pthread_t setup_rtp_sniffer(struct session_info* ss)
     
     log("DEBUG here\n");
 
+    rs->session_id = rtp_ctx.serial_no;
+    rtp_ctx.serial_no++;
 	//session_up();
 	
 	if(pthread_create(&tid,NULL,sniffer_rtp_loop1,rs))
@@ -907,6 +1235,7 @@ void rtp_sniffer_init(void)
 {
 
     INIT_LIST_HEAD(&rtp_ctx.rtp_head);
+    rtp_ctx.serial_no = 0;
     ulawcodec_init();
     ast_alaw_init();
 
