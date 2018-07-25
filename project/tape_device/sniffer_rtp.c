@@ -617,7 +617,7 @@ int linear_list_mix(struct rtp_session_info* rs)
         tttt++;
         fwrite(rs->stMix.data,mix_len,1,dest_fp);
     } while((!list_empty(_mix_list_a))||(!list_empty(_mix_list_b)));
-    printf("%s:%d ttt %d \n",__func__,__LINE__,tttt);
+   // printf("%s:%d ttt %d \n",__func__,__LINE__,tttt);
 
     fclose(dest_fp);
     
@@ -699,11 +699,12 @@ static void session_talking_2(struct iphdr* iph,struct udphdr* udph,
     {
 
     
-    printf("---%s:%d rs->mix_file_frag_count %d "
-    "called_mix_list_st pkt count %d  calling _pkt_count %d \n",
-        __func__,__LINE__,rs->mix_file_frag_count,
-        rs->called_mix_list_st._pkt_count,
-        rs->calling_mix_list_st._pkt_count);
+ //////   printf("---%s:%d rs->mix_file_frag_count %d "
+ //   "called_mix_list_st pkt count %d  calling _pkt_count %d \n",
+//        __func__,__LINE__,rs->mix_file_frag_count,
+//        rs->called_mix_list_st._pkt_count,
+//        rs->calling_mix_list_st._pkt_count);
+
         linear_list_mix(rs);
         rs->mix_file_frag_count++;
         
@@ -896,14 +897,15 @@ static void sighandler(int s)
             if(n->save_called_linear_fp)
                 fclose(n->save_called_linear_fp);
 
+           handler_last_linear_list(n);
 
             
            // mix_the_linear_file(n);    
 
          //   upload_the_mix_file(n);
            
-           //  remove(n->called_name_linear);
-          //   remove(n->calling_name_linear);
+             remove(n->called_name_linear);
+             remove(n->calling_name_linear);
           //   remove(n->mix_file_name);
              
             _rtp_del_session(n);
@@ -1016,7 +1018,10 @@ void close_rtp_sniffer(struct session_info* ss)
         if(n)
         {
             log("sync time;\n");
-            memcpy(&n->ring_time,&ss->ring_time,sizeof(ss->ring_time));
+            if(ss->ring_time.tm_year != 0)
+            {
+                memcpy(&n->ring_time,&ss->ring_time,sizeof(ss->ring_time));
+            }
         }
 
                 
@@ -1119,7 +1124,6 @@ pthread_t setup_rtp_sniffer(struct session_info* ss)
 	int t= 0;
 
     time_t a;
-    time(&a);
     //ss->start_time_stamp = a;
 	if (ss->mode == SS_MODE_CALLED){
 	    log("this session is called (slave) \n");
@@ -1161,6 +1165,10 @@ pthread_t setup_rtp_sniffer(struct session_info* ss)
 
      rs->called_mix_list_st.linear_buf_list = 
         &rs->called_mix_list_st._list_a;
+/*get the ring time */
+    time(&a);
+
+    memcpy(&rs->ring_time,localtime(&a),sizeof(struct tm));;
 
     ss->start_time_stamp = a;
     rs->start_time_stamp = a;
