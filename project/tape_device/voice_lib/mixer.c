@@ -39,7 +39,7 @@ bool mix2(struct mixer* mix,char* data, size_t len, char* data2,
     int t32;
 	// 计数
 	mix->mixcount++;
-	int i;
+	size_t i;
     size_t samples = 2000;
     if(samples <=len)
         return false;
@@ -78,7 +78,7 @@ bool mix(struct mixer* mix,char* data, size_t len, size_t* mixed_len)
     int t32;
 	// 计数
 	mix->mixcount++;
-	int i;
+	size_t i;
     size_t samples = 2000;
     if(samples <=len)
         return false;

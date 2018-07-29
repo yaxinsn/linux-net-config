@@ -38,7 +38,7 @@ struct password_st
 
 struct ntp_st
 {
-    unsigned char ntp_server[128];
+    char ntp_server[128];
 };
 
 

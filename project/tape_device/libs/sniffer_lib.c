@@ -177,7 +177,7 @@ int check_iphdr( const struct pcap_pkthdr * phdr, const u_char * pkt,
 		log("ip header error\n");
 		goto inhdr_error;
 	}
-	if(iph->ihl*4 >  phdr->caplen -((u8*)iph - data)){
+	if((int)iph->ihl*4 >  (int)(phdr->caplen -((u8*)iph - data))){
 		log("ip header len is beyond the caplen!\n");
 		goto inhdr_error;
 	}
@@ -198,7 +198,7 @@ inhdr_error:
 int check_udp( struct iphdr* iph,struct udphdr** udph_p)
 {
 	struct udphdr* udph;
-	int ip_payload_len = ntohs(iph->tot_len)- iph->ihl*4;
+    uint32_t ip_payload_len = ntohs(iph->tot_len)- iph->ihl*4;
 	if(iph->protocol == IPPROTO_UDP)
 	{
 		udph = (struct udphdr*)((u8*)iph + iph->ihl*4);

@@ -423,14 +423,14 @@ void handle_clear_prompt_status(skinny_opcode_map_t* skinny_op,
     skinny_log("enter\n");
     skinny_info->callid = callRefer;
     return;
-    #if 0
+/*
     struct session_info* ss;
     ss = skinny_get_session_by_callRef(callRefer);
     if(ss)
         close_rtp_sniffer(ss);
     else
         skinny_log(" Not find this callrefer %d  \n",callRefer);
-    #endif;
+*/
 }
 #if 0
 void handle_stop_media_transmission(skinny_opcode_map_t* skinny_op, 
@@ -472,7 +472,7 @@ void handle_start_media_transmission(skinny_opcode_map_t* skinny_op, u8* msg,u32
 {
     u8* p = msg;
     u32 conferenceID;
-    u32 status;
+  //  u32 status;
     u32 ipv4orv6;
     u32 remoteIpv4Address;
     u32 remotePort;
@@ -643,7 +643,7 @@ void cul_skinny_start_time(struct session_info* ss, struct tm* t)
     skinny_log(" I get time: acstime %s  \n",asctime(tt));
 }
 
-check_all_session_is_callstate_onhook(struct tm* t)
+void check_all_session_is_callstate_onhook(struct tm* t)
 {
     extern struct session_ctx_t sip_ctx;
     struct session_info* p;
@@ -813,11 +813,11 @@ void handle_CallState(skinny_opcode_map_t* skinny_op, u8* msg,u32 len,
     {
         ss = si_new_session();
         if(ss ==NULL)
-            return NULL;
+            return;
         ss->call_id = strdup(callid);
         if(ss->call_id == NULL){
             si_del_session(ss);
-            return NULL;
+            return;
         }
     }
 
@@ -868,8 +868,8 @@ void handle_callinfo2_function(skinny_opcode_map_t* skinny_op, u8* msg,u32 len,
 	
 	struct session_info* ss;
 	
-	char callid[64]={0};
-	
+//	char callid[64]={0};
+
     skinny_log("enter\n");
 	CW_LOAD_U32(lineInstance,p);
 	CW_LOAD_U32(callReference,p);
@@ -896,7 +896,7 @@ void handle_callinfo2_function(skinny_opcode_map_t* skinny_op, u8* msg,u32 len,
     
 	if(callType == 2) //outBoundCall
 	{
-    	t = p;
+    	t = (char*)p;
     	strncpy(ss->calling.number,t,sizeof(ss->calling.number));
     	
     	t+=strlen(t);
@@ -920,7 +920,7 @@ void handle_callinfo2_function(skinny_opcode_map_t* skinny_op, u8* msg,u32 len,
 	}
 	else if((callType == 1))//InBoundCall
 	{
-	    t = p;
+	    t = (char*)p;
     	
     	strncpy(ss->calling.number,t,sizeof(ss->calling.number));
     	skinny_log("---- calling number %s \n",ss->calling.number);
@@ -1018,7 +1018,7 @@ void handle_default_function (skinny_opcode_map_t* skinny_op, u8* msg,u32 len,
 }
 
 /* Messages Handler Array */
-static const skinny_opcode_map_t skinny_opcode_map[] = {
+static  skinny_opcode_map_t skinny_opcode_map[] = {
   {0x0000, handle_default_function                                           , SKINNY_MSGTYPE_REQUEST  , "KeepAliveReqMessage"},
 #if 1
   {0x0001, handle_default_function                      , SKINNY_MSGTYPE_REQUEST  , "RegisterReqMessage"},
@@ -1197,15 +1197,15 @@ static const skinny_opcode_map_t skinny_opcode_map[] = {
 
 #define CW_IsMsgOutBound(pucCurPos, pucEndPos, usLen) ((pucCurPos + usLen) > pucEndPos)
 
-int handler_skinny_elements(u8* msg,int msg_size)
+void handler_skinny_elements(u8* msg,int msg_size)
 {
 	u32 len;
 	u32 hdr_opcode;
 	u32 hdr_ver;
 	u8* p = msg;
-	int i;
+	u32 i;
 	u32 message_len = 0;
-	skinny_opcode_map_t* opcode_entry;
+    skinny_opcode_map_t* opcode_entry;
 
 	skinny_info_t skinny_info;
 	memset(&skinny_info,0,sizeof(skinny_info_t));
@@ -1246,7 +1246,7 @@ void show_tcp_info(struct tcphdr* th )
 				"head len %d byte (%d)\n"
 				"flags %s %s %s %s %s %s %s %s \n",
 			htons(th->source),htons(th->dest),ntohl(th->seq),          ntohl(th->ack_seq),
-				th->doff*4,th->doff,
+				th->doff*4, th->doff,
 				th->fin?"Finish":"NoFinish",
 				th->syn?"Syn":"NoSyn",
 				th->rst?"Reset":"NoReset",
@@ -1256,12 +1256,13 @@ void show_tcp_info(struct tcphdr* th )
 				th->ece?"ECN-ECHO":"NoECH-ECHO",
 				th->cwr?"Congestion_Window_Reduced":"NoCWR");
 }
-dump_hex(u8* src,int len)
+
+void dump_hex(u8* src,int len)
 {
-    u8 buffer[8000]={0};
+    char buffer[8000]={0};
     int i;
     int t;
-    u8* p = buffer;
+    char* p = buffer;
     for(i=0;i<len;i++){
         t = sprintf(p,"%02X ",src[i]);
         p+=t;

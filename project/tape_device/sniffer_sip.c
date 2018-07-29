@@ -731,7 +731,8 @@ void __free_sip_pkt(struct sip_pkt* spkt_p)
 	
     
 }
-int handle_sip_pkt_content( struct udphdr* udph)
+//int handle_sip_pkt_content( struct udphdr* udph)
+int handle_sip_pkt_content(void* sip_payload,int len)
 {
 	//char* sip = (u8*)(udph+1);
 	
@@ -739,10 +740,11 @@ int handle_sip_pkt_content( struct udphdr* udph)
 	struct sip_pkt* spkt_p = &spkt;
 	char* mesg_header;
 	char* mesg_body;
-	char* sip = malloc(htons(udph->len));
+	//char* sip = malloc(htons(udph->len));
+	char* sip = malloc((len));
 	if(sip == NULL)
 		return -1;
-	memcpy(sip,(u8*)(udph+1),htons(udph->len)-8);
+	memcpy(sip,(u8*)sip_payload,len);
 
 	memset(&spkt,0,sizeof(spkt));
 
@@ -849,13 +851,35 @@ static void sniffer_handle_sip(u_char * user, const struct pcap_pkthdr * packet_
 	ret = check_iphdr(phdr,packet_content,&iph);
 	if(ret != 0)
 		goto error;
+	if(iph->protocol == IPPROTO_UDP)
+	{
+	    if(0 != check_udp(iph,&udph))	
+		    goto error;
 	
-	if(0 != check_udp(iph,&udph))	
-		goto error;
+        //send_sip_pkt(iph,udph);/* 把sip报文转给upload一份。 */
+	    handle_sip_pkt_content((void*)(udph+1),htons(udph->len)-8);
+	    return;
+	}
+	if(iph->protocol == IPPROTO_TCP)
+	{
+	    struct tcphdr* th = NULL;
+	    u8* tcp_payload = ((u8*)th)+(th->doff * 4);
+	    int tcp_len = ntohs(iph->tot_len)- iph->ihl*4;
+	    int tcp_payload_len = tcp_len - (th->doff * 4);
 	
-    //send_sip_pkt(iph,udph);/* 把sip报文转给upload一份。 */
-	handle_sip_pkt_content(udph);
-	
+	    if(0 != check_tcp(iph,&th))	{
+            sip_log_err("check_tcp error\n");
+		    goto error;
+	    }
+	    if(tcp_payload_len == 0)
+	    {
+		    sip_log("this frame no tcp payload\n\n");
+		    return;
+	    }
+        //send_sip_pkt(iph,udph);/* 把sip报文转给upload一份。 */
+	    handle_sip_pkt_content(tcp_payload,tcp_payload_len);
+	    return;
+	}
 error:
 	return;
 }

@@ -66,7 +66,6 @@ int init_device_hostip(void)
 int init_ntpd()
 {
     
-    struct config_st* c = &g_config;
     char* ntp_server = g_config.ntp.ntp_server;
     char cmd[1024]={0};
     sprintf(cmd,"ntpd -p %s",ntp_server);

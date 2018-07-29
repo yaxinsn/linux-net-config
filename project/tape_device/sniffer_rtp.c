@@ -209,7 +209,7 @@ struct rtp_type_str g_rtp_file_perfix[] =
     {RTP_TYPE_PCMU_G729,"g729"},
 };
 
-#define RTP_TYPE_PCMU  0
+//#define RTP_TYPE_PCMU  0
 
 #if defined(__LITTLE_ENDIAN_BITFIELD)
 struct rttphdr{
@@ -264,7 +264,7 @@ u8* rtp_g722_decode(g722_decode_state_t* g722dst,char *src, int src_len, int* le
 
 
 	*len = samples*2;
-	char* char_dst=malloc( sizeof(char)*(samples*2));
+	u8* char_dst=malloc( sizeof(char)*(samples*2));
 	if(char_dst == NULL)
 	{
 	    log_err("malloc err!\n");
@@ -290,22 +290,20 @@ static int session_talking_pkt_dec722
     int dest_g722_len;
     u8* dest_buf;
     //int mix_len;
-    bool ret;
+//    bool ret;
     
+    dest_buf = rtp_g722_decode(g722_decode,payload,payload_len,&dest_g722_len);
+    if(dest_buf){
+        fwrite(dest_buf,dest_g722_len,1,fp);
+        free(dest_buf);
+        
+    }
+    else
+    {
+        log_err("g722 decode error! \n");
+        return -1;
+    }
 
-    
-        dest_buf = rtp_g722_decode(g722_decode,payload,payload_len,&dest_g722_len);
-        if(dest_buf){
-            fwrite(dest_buf,dest_g722_len,1,fp);
-            free(dest_buf);
-            
-        }
-        else
-        {
-            log_err("g722 decode error! \n");
-            return -1;
-        }
-   
      
      return 0;
 }
@@ -568,13 +566,7 @@ static linear_buf* session_talking_pkt_to_linear
      
      return lb;
 }
-int linear_buf_mix(struct mixer* mix_engine,char* calling,
-    int calling_len,char* called,int called_len,int* mix_len)
-{     
-    mix(mix_engine,calling,calling_len,&mix_len);
-    mix(mix_engine,called,called_len,&mix_len);
-    return 0;
-}
+
 //6000  pkt == 120s 
 #define   MIX_BUF_COUNT  6000 // 
 int linear_list_mix(struct rtp_session_info* rs)
@@ -586,7 +578,7 @@ int linear_list_mix(struct rtp_session_info* rs)
     struct mixer* mix_engine = &rs->stMix;
     linear_buf*   lb_a;
     linear_buf*   lb_b;
-    int mix_len;
+    size_t mix_len;
     char save_file_name[256] = {0};
     char ring_time[256] = {0};
     FILE* dest_fp;
@@ -740,7 +732,7 @@ int mix_the_linear_file(struct rtp_session_info* n)
     u8 called_buf[READ_BUF_SIZE];
     int reta;
     int retb;
-    int mix_len = 0;
+    size_t mix_len = 0;
     int break_flag = 0;
     
     char ring_time[64] =  {0};
