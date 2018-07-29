@@ -243,6 +243,8 @@ struct rttphdr{
 #error  "Please fix <asm/byteorder.h>"
 #endif
 
+int upload_the_mix_file(const struct rtp_session_info* n);
+/**************************************************************/
 
 static int save_rtp_frame(FILE* fp,void* buffer,int len)
 {
@@ -1030,23 +1032,26 @@ void close_rtp_sniffer(struct session_info* ss)
     //session_down();
     
     //time(&ss->stop_time_stamp);
-    struct rtp_session_info* n;
+   // struct rtp_session_info* n;
     if(ss->rtp_sniffer_tid)
     {
     
         log(" I %ul kill %ul thread(rtp) \n",(unsigned long)pthread_self()
                 ,(unsigned long)ss->rtp_sniffer_tid);
+#if 0
         n = _rtp_find_session(ss->rtp_sniffer_tid);
         if(n)
         {
+
             log("sync time;\n");
             if(ss->ring_time.tm_year != 0)
             {
                 memcpy(&n->ring_time,&ss->ring_time,sizeof(ss->ring_time));
             }
-        }
 
-                
+        }
+#endif
+          
         thread_kill(ss->rtp_sniffer_tid);
     }
 }
@@ -1140,10 +1145,10 @@ pthread_t setup_rtp_sniffer(struct session_info* ss)
 	//char mix_file[256]={0};
 	//char file_name2[256]={0};
 	//char file_name3[256]={0};
-	char file_name2_linear[256]={0};
-	char file_name3_linear[256]={0};
+//	char file_name2_linear[256]={0};
+//	char file_name3_linear[256]={0};
 	struct rtp_session_info* rs;
-	int t= 0;
+//	int t= 0;
 
     time_t a;
     //ss->start_time_stamp = a;

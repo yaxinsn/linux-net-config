@@ -11,6 +11,7 @@ upload????????
 
 #include <sys/types.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 #include <time.h>
 #include <stdbool.h>
@@ -72,10 +73,12 @@ static int __upload_msg_handle(void* msg,int len,struct msg_engine_ctx* me)
 {
 	struct upload_msg* pm = msg;
     upload_ctx_t* upload_s;
-
+    char file_name[300]={0};
+    
 	upload_s = container_of(me, upload_ctx_t, msg_eng);
 	upload_mix_file(upload_s->server_url,&pm->upload_file_info);
-//	rmmove();
+	sprintf(file_name,"/tmp/%s",pm->upload_file_info.file_name);
+	remove(file_name);
 	return 0;
 }
 
