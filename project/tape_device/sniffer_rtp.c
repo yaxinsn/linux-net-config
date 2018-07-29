@@ -33,7 +33,7 @@
 
 #include "log.h"
 #include "sniffer_rtp.h"
-//#include "upload.h"
+#include "upload.h"
 
 
 #include "mixer.h"
@@ -115,6 +115,7 @@ struct rtp_session_info
      struct linear_mix_list_st called_mix_list_st;
 
      int mix_file_frag_count;
+     int mix_file_frag_flag;
      int session_id;
 };
 
@@ -617,7 +618,6 @@ int linear_list_mix(struct rtp_session_info* rs)
         tttt++;
         fwrite(rs->stMix.data,mix_len,1,dest_fp);
     } while((!list_empty(_mix_list_a))||(!list_empty(_mix_list_b)));
-   // printf("%s:%d ttt %d \n",__func__,__LINE__,tttt);
 
     fclose(dest_fp);
     
@@ -706,6 +706,8 @@ static void session_talking_2(struct iphdr* iph,struct udphdr* udph,
 //        rs->calling_mix_list_st._pkt_count);
 
         linear_list_mix(rs);
+        
+        upload_the_mix_file(rs);
         rs->mix_file_frag_count++;
         
         rs->called_mix_list_st.mix_ready_flag = 0;
@@ -814,18 +816,17 @@ int cul_rtp_end_time(struct rtp_session_info* n)
     memcpy(&n->end_time,tt,sizeof(struct tm));
     return 0;
 }
-int upload_the_mix_file( struct rtp_session_info* n)
+int upload_the_mix_file(const struct rtp_session_info* n)
 {
     int ret;
     struct upload_file_info ufi;
     char time_str[256]={0};
     struct config_st* c = &g_config;
     
-    char save_file_name[256]={0};
+   // char save_file_name[256]={0};
     
     char ring_time[256]={0};
     
-    //memcpy(ufi.box_id,g_config.eth0_mac,6);
     
     strncpy(ufi.call_caller_number,n->calling.number,sizeof(ufi.call_caller_number));
     
@@ -849,14 +850,32 @@ int upload_the_mix_file( struct rtp_session_info* n)
     strftime(time_str,256,"%Y-%m-%d %H:%M:%S",&n->end_time);
     strncpy(ufi.call_end_time,time_str,sizeof(ufi.call_end_time));
 
-    strftime(ring_time,256,"%Y-%m-%d-%H-%M-%S",&n->ring_time);     
-    sprintf(ufi.file_name,"from_%s_to_%s_startTime_%s.mix",
-            n->calling.number,n->called.number,ring_time);
+    strftime(ring_time,256,"%Y-%m-%d-%H-%M-%S",&n->ring_time);  
+    
+    sprintf(ufi.file_name,"from_%s_to_%s_startTime_%s_No_%d_fragid_%d.mix",
+            n->calling.number,n->called.number,ring_time,
+            n->session_id,n->mix_file_frag_count);
+    if(n->mix_file_frag_count == 0){
+        sprintf(ufi.frag_flag,"%d",0);
+    }
+    else if (n->mix_file_frag_count != 0)
+        sprintf(ufi.frag_flag,"%d",1);
+
+    if (n->mix_file_frag_flag  == 2)
+    {
+         sprintf(ufi.frag_flag,"%d",2); //last frag
+    }
+    sprintf(ufi.frag_serial_no ,"%d",n->session_id);
+  //  sprintf(ufi.file_name,"from_%s_to_%s_startTime_%s.mix",
+  //          n->calling.number,n->called.number,ring_time);
             
     sprintf(ufi.box_id,"%02X:%02X:%02X:%02X:%02X:%02X:%02X",
         c->eth0_mac[0],c->eth0_mac[1],c->eth0_mac[2],
 	    c->eth0_mac[3],c->eth0_mac[4],c->eth0_mac[5]);
+#if 0
     ret = upload_mix_file(c->upload_http_url,&ufi);
+#endif
+    ret = uploader_push_msg((struct upload_msg*)&ufi,sizeof(ufi));
     return ret;
 }
 void handler_last_linear_list(struct rtp_session_info* n)
@@ -869,6 +888,8 @@ void handler_last_linear_list(struct rtp_session_info* n)
         n->called_mix_list_st.linear_buf_list;
        
      linear_list_mix(n);
+     n->mix_file_frag_flag = 2;//last frag
+     upload_the_mix_file(n);
 }
 static void sighandler(int s)
 {
@@ -884,6 +905,7 @@ static void sighandler(int s)
                 cul_rtp_end_time(n);
             
             pcap_close(n->pd);
+ #if 0           
             if(n->save_called_fp)
                 fclose(n->save_called_fp);
             if(n->save_calling_fp)
@@ -891,21 +913,21 @@ static void sighandler(int s)
 
             if(n->save_mix_fp)
                 fclose(n->save_mix_fp);
+                
             if(n->save_calling_linear_fp)
                 fclose(n->save_calling_linear_fp);
             
             if(n->save_called_linear_fp)
                 fclose(n->save_called_linear_fp);
-
+#endif
            handler_last_linear_list(n);
 
             
            // mix_the_linear_file(n);    
 
-         //   upload_the_mix_file(n);
            
-             remove(n->called_name_linear);
-             remove(n->calling_name_linear);
+           //  remove(n->called_name_linear);
+           //  remove(n->calling_name_linear);
           //   remove(n->mix_file_name);
              
             _rtp_del_session(n);
@@ -1175,7 +1197,7 @@ pthread_t setup_rtp_sniffer(struct session_info* ss)
     rs->call_dir = ss->mode;
     memcpy(&rs->called,&ss->called,sizeof(ss->called));
     memcpy(&rs->calling,&ss->calling,sizeof(ss->calling));
-    log("DEBUG here\n");
+ //   log("DEBUG here\n");
     memcpy(&rs->called,&ss->called,sizeof(struct  person));
     memcpy(&rs->calling,&ss->calling,sizeof(struct  person));
     rs->pd = pd;
@@ -1204,7 +1226,7 @@ pthread_t setup_rtp_sniffer(struct session_info* ss)
     strcpy(rs->calling_name,file_name3);
 
     
-#endif
+
     t=0;
     t += sprintf(file_name2_linear,"/tmp/to_%s_",inet_ntoa(ss->called.ip));
     t += sprintf(file_name2_linear+t,"%lu.linear",a);
@@ -1217,9 +1239,10 @@ pthread_t setup_rtp_sniffer(struct session_info* ss)
     rs->save_calling_linear_fp = fopen(file_name3_linear,"w");
     strcpy(rs->calling_name_linear,file_name3_linear);
 
+#endif
 
     
-    log("DEBUG here\n");
+ //   log("DEBUG here\n");
 
     rs->session_id = rtp_ctx.serial_no;
     rtp_ctx.serial_no++;

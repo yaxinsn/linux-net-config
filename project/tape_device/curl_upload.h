@@ -13,6 +13,10 @@ struct upload_file_info
     char  call_begin_time[32];   
     char  call_end_time[32];
     char  file_name[128];
+    char  frag_serial_no[32];
+    
+    char  frag_flag[3]; //0 no,1 yes, 2 the last frag.
+    
 };
 
 

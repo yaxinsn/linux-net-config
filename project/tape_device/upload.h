@@ -12,9 +12,10 @@
 #include <sys/queue.h>
 #include <pthread.h>
 #include "types_.h"
+#include "curl_upload.h"
 
 /* sniffer与uploader之间的消息定义 */
-
+#if 0
 enum PHONE_EVENT{
 	RING_UP = 1, /* 打电话 */
 	TALKING, /* 通话 */
@@ -22,12 +23,7 @@ enum PHONE_EVENT{
 	SIP_PKT
 };
 
-struct phone_msg 
-{
-	enum PHONE_EVENT event;
-	u8 data[0];
-	
-};
+
 
 struct talking_mesg
 {
@@ -44,10 +40,17 @@ struct talking_mesg
 	u16 lenth;
 	u8 data[0];
 };
+#endif
 
+typedef struct upload_msg 
+{
+    
+    struct upload_file_info upload_file_info;
+    
+};
 
 pthread_t uploader_start(void);
-int uploader_push_msg(struct phone_msg*  msg,int len);
+int uploader_push_msg(struct upload_msg* msg,int len);
 
 
 #endif

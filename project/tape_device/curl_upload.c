@@ -62,7 +62,7 @@ void set_up_formpost(struct curl_httppost** formpost,struct curl_httppost** last
 
     curl_formadd((struct curl_httppost**)formpost,
                (struct curl_httppost**)lastptr,
-               CURLFORM_COPYNAME, "BOX_ID",
+               CURLFORM_COPYNAME, "BOX_MAC",
                CURLFORM_COPYCONTENTS, info->box_id,
                CURLFORM_END);
 
@@ -83,7 +83,22 @@ void set_up_formpost(struct curl_httppost** formpost,struct curl_httppost** last
                CURLFORM_COPYNAME, "SECRET",
                CURLFORM_COPYCONTENTS, "1",
                CURLFORM_END);
-  
+               
+      curl_formadd((struct curl_httppost**)formpost,
+               (struct curl_httppost**)lastptr,
+               CURLFORM_COPYNAME, "SERIAL_NO",
+               CURLFORM_COPYCONTENTS, info->frag_serial_no,
+               CURLFORM_END);
+
+      curl_formadd((struct curl_httppost**)formpost,
+               (struct curl_httppost**)lastptr,
+               CURLFORM_COPYNAME, "FRAG_FLAG",
+               CURLFORM_COPYCONTENTS, info->frag_flag,
+               CURLFORM_END);
+
+               
+
+               
     sprintf(path_and_filename,"/tmp/%s",info->file_name);
 
     curl_formadd((struct curl_httppost**)formpost,

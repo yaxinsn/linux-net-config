@@ -31,7 +31,7 @@ main.c
 
 #include "log.h"
 #include "config.h"
-//#include "upload.h"
+#include "upload.h"
 #include "sniffer_sip.h"
 #include "sniffer_rtp.h"
 
@@ -83,7 +83,8 @@ void main_get_config()
 FILE* main_log_fp;
 int main(int argc,char* argv[])
 {
-	//pthread_t uploader;
+	pthread_t uploader;
+	pthread_t heart;
 	pthread_t sniffer;
 	pthread_t sniffer_skinny;
 
@@ -103,21 +104,34 @@ int main(int argc,char* argv[])
 	init_ntpd();
 	session_init();
 	rtp_sniffer_init();
-#if 0	
+#if 1	
 	uploader = uploader_start();
 	if(uploader == 0)
 	{
 		log("uploader start error, exit\n");
 		exit(1);
 	}
+
+
+		heart = heart_start();
+	if(heart == 0)
+	{
+		log("heart start error, exit\n");
+		exit(1);
+	}
+	
 #endif	
     sniffer = sniffer_sip_start();
     sleep(1);
 	sniffer_skinny = sniffer_skinny_start();
     printf("%s:%d \n",__func__,__LINE__);
+
+    
 	pthread_join(sniffer,NULL);
 	pthread_join(sniffer_skinny,NULL);
-	//pthread_join(uploader,NULL);
+	pthread_join(uploader,NULL);
+	pthread_join(heart,NULL);
+	
     printf("%s:%d \n",__func__,__LINE__);
 	return 0;
 }
