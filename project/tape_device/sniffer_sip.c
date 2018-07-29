@@ -919,7 +919,7 @@ void* sniffer_sip_loop(void* arg)
 		exit(1);
 	}
 
-	sprintf(filter,"udp and host %s and port %d ",
+	sprintf(filter," host %s and port %d ",
 	inet_ntoa(g_config.call.ip),
 	g_config.call.port);
 	sniffer_setfilter(pd,filter);
