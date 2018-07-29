@@ -35,7 +35,13 @@ main.c
 #include "sniffer_sip.h"
 #include "sniffer_rtp.h"
 
-
+int main_log(char* s)
+{
+    char log[1000]={0};
+    sprintf(log,"echo %s >> /home/root/core/main.log");
+    system(log);
+    return 0;
+}
 struct config_st g_config;
 int init_device_hostip(void)
 {
@@ -91,6 +97,7 @@ int main(int argc,char* argv[])
 	main_log_fp = fopen(MAIN_LOG_FILE,"a+");
     if(main_log_fp == NULL){
         printf("main log file not open \n");
+        main_log("main log file not open");
         exit(1);
     }
     
@@ -108,6 +115,7 @@ int main(int argc,char* argv[])
 	if(uploader == 0)
 	{
 		log("uploader start error, exit\n");
+        main_log("uploader start error, exit");
 		exit(1);
 	}
 
@@ -116,6 +124,7 @@ int main(int argc,char* argv[])
 	if(heart == 0)
 	{
 		log("heart start error, exit\n");
+        main_log("heart start error, exit");
 		exit(1);
 	}
 	
@@ -123,7 +132,7 @@ int main(int argc,char* argv[])
     sniffer = sniffer_sip_start();
     sleep(1);
 	sniffer_skinny = sniffer_skinny_start();
-    printf("%s:%d \n",__func__,__LINE__);
+ //   printf("%s:%d \n",__func__,__LINE__);
 
     
 	pthread_join(sniffer,NULL);
@@ -131,6 +140,6 @@ int main(int argc,char* argv[])
 	pthread_join(uploader,NULL);
 	pthread_join(heart,NULL);
 	
-    printf("%s:%d \n",__func__,__LINE__);
+   // printf("%s:%d \n",__func__,__LINE__);
 	return 0;
 }

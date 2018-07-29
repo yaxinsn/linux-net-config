@@ -1348,7 +1348,7 @@ void* sniffer_skinny_loop(void* arg)
 		inet_ntoa(g_config.skinny_call.ip),
 		g_config.skinny_call.port);
 	sniffer_setfilter(pd,filter);
-	
+	skinny_log("filter: %s\n",filter);
     skinny_log("sniffer_skinny_loop ok  \n");
 
 	while(1)
@@ -1382,6 +1382,7 @@ pthread_t sniffer_skinny_start(void)
     skinny_log_fp = fopen(SKINNY_LOG_FILE,"a+");
     if(skinny_log_fp == NULL){
         printf("skinny log file not open \n");
+        
         exit(1);
     }
 
