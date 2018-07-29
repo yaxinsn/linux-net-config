@@ -36,6 +36,11 @@ struct password_st
     unsigned char password[128];
 };
 
+struct ntp_st
+{
+    unsigned char ntp_server[128];
+};
+
 
 struct config_st
 {
@@ -45,6 +50,7 @@ struct config_st
 	struct callcenter_st skinny_call;
 	struct tapeserver_st tape;
 	struct password_st pwd;
+	struct ntp_st ntp;
 	u8   eth0_mac[6];
 	char upload_http_url[1024];
 };

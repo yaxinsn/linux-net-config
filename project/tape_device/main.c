@@ -63,6 +63,16 @@ int init_device_hostip(void)
     }
     return 0;
 }
+int init_ntpd()
+{
+    
+    struct config_st* c = &g_config;
+    char* ntp_server = g_config.ntp.ntp_server;
+    char cmd[1024]={0};
+    sprintf(cmd,"ntpd -p %s",ntp_server);
+    system(cmd);
+    return 0;
+}
 void main_get_config()
 {
 	
@@ -89,6 +99,8 @@ int main(int argc,char* argv[])
 	log("get config and upload \n");
 
 	init_device_hostip();
+	
+	init_ntpd();
 	session_init();
 	rtp_sniffer_init();
 #if 0	

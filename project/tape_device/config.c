@@ -116,6 +116,29 @@ int get_config_hostip(json_object* j_cfg,struct config_st* c )
 	}	
 	return 0;
 }
+int get_config_ntp_server(json_object* j_cfg,struct config_st* c )
+{	
+	const char* str;
+	struct json_object *o;
+	enum json_type o_type;
+	//int ret;
+	struct ntp_st* p_ntp = &c->ntp;
+	
+	json_object* j_ = json_object_object_get(j_cfg, "NTPSERVER");
+	if(j_ ==NULL){
+		log("no NTPSERVER");
+		return -1;
+	}
+
+
+	str = json_common_get_string(j_,"NTPSERVER");
+	if(str != NULL)
+		strcpy(p_ntp->ntp_server,str);
+	else
+		return -1;
+	
+	return 0;
+}
 
 int get_config_heart_ser(json_object* j_cfg,struct config_st* c )
 {	
@@ -337,6 +360,7 @@ int get_config(struct config_st* c)
 	get_config_callcenter(j_cfg,c);
 	get_config_callcenter_skinny(j_cfg,c);
 	get_config_heart_ser(j_cfg,c);
+	get_config_ntp_server(j_cfg,c);
 	get_config_hostip(j_cfg,c);
 	json_object_put(j_cfg);
 
@@ -364,6 +388,9 @@ int show_config(struct config_st* c)
 	log("heart server:\n");
 	log("URL %s\n",c->heart_ser.url);
 	log("intval %d\n",c->heart_ser.interval);
+	
+	log("ntpd server:\n");
+	log("\tserver %s\n",c->ntp.ntp_server);
 	
 	log("callcenter sip server:\n");
 	log("ip %x\n",c->call.ip);
