@@ -115,7 +115,7 @@ struct rtp_session_info
      struct linear_mix_list_st called_mix_list_st;
 
      int mix_file_frag_count;
-     int mix_file_frag_flag;
+     int mix_file_frag_info_caller;  //   0 is user hung up. the rtp is stop;   1 is session_talking_2
      int session_id;
 };
 
@@ -701,6 +701,7 @@ static void session_talking_2(struct iphdr* iph,struct udphdr* udph,
 
         linear_list_mix(rs);
         
+        rs->mix_file_frag_info_caller = 1;
         upload_the_mix_file(rs);
         rs->mix_file_frag_count++;
         
@@ -810,6 +811,10 @@ int cul_rtp_end_time(struct rtp_session_info* n)
     memcpy(&n->end_time,tt,sizeof(struct tm));
     return 0;
 }
+/*
+caller_flag is 0 ,mean  the signal_handler
+fiag is 1, mean is 
+*/
 int upload_the_mix_file(const struct rtp_session_info* n)
 {
     int ret;
@@ -817,7 +822,6 @@ int upload_the_mix_file(const struct rtp_session_info* n)
     char time_str[256]={0};
     struct config_st* c = &g_config;
     
-   // char save_file_name[256]={0};
     
     char ring_time[256]={0};
     
@@ -849,13 +853,16 @@ int upload_the_mix_file(const struct rtp_session_info* n)
     sprintf(ufi.file_name,"from_%s_to_%s_startTime_%s_No_%d_fragid_%d.mix",
             n->calling.number,n->called.number,ring_time,
             n->session_id,n->mix_file_frag_count);
-    if(n->mix_file_frag_count == 0){
+    if( n->mix_file_frag_info_caller == 0 
+        && n->mix_file_frag_count == 0)
+    {
         sprintf(ufi.frag_flag,"%d",0);
     }
-    else if (n->mix_file_frag_count != 0)
+    else if ( n->mix_file_frag_info_caller == 1)
         sprintf(ufi.frag_flag,"%d",1);
 
-    if (n->mix_file_frag_flag  == 2)
+    else if ( n->mix_file_frag_info_caller == 0 
+        && n->mix_file_frag_count != 0)
     {
          sprintf(ufi.frag_flag,"%d",2); //last frag
     }
@@ -863,7 +870,7 @@ int upload_the_mix_file(const struct rtp_session_info* n)
   //  sprintf(ufi.file_name,"from_%s_to_%s_startTime_%s.mix",
   //          n->calling.number,n->called.number,ring_time);
             
-    sprintf(ufi.box_id,"%02X:%02X:%02X:%02X:%02X:%02X:%02X",
+    sprintf(ufi.box_id,"%02X:%02X:%02X:%02X:%02X:%02X",
         c->eth0_mac[0],c->eth0_mac[1],c->eth0_mac[2],
 	    c->eth0_mac[3],c->eth0_mac[4],c->eth0_mac[5]);
 #if 0
