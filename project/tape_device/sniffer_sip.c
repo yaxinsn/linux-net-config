@@ -387,9 +387,14 @@ int parse_msg_header(char* mh,struct sip_pkt* sp)
 	if(sp->msg_hdr.user_agent == NULL)
         v = __parse_msg_header_str_element(mh,"User-Agent",&sp->msg_hdr.user_agent);
 
-	if(sp->msg_hdr.cseq == NULL)
+	if(sp->msg_hdr.cseq == NULL){
         v = __parse_msg_header_str_element(mh,"CSeq",&sp->msg_hdr.cseq);
-
+        if(sp->msg_hdr.cseq != NULL)
+        {
+            if(strstr(sp->msg_hdr.cseq,"REGISTER"))
+                sp->session_ok_cseq_register = 1;
+        }
+    }
 
 
     v= __find_msg_hdr_key(mh,key,&len);
@@ -495,6 +500,18 @@ int pase_sip_start_line(char* l,struct sip_pkt* sp)
 	return 0;
 }
 
+void create_session(struct sip_pkt* spkt_p)
+{
+     struct session_info* ss = si_find_session(spkt_p->msg_hdr.call_id);
+     if(!ss)
+     {
+        _create_session(spkt_p);
+     }
+     else
+     {
+        sip_log("INVATE this session (callid %s) is exist\n",spkt_p->msg_hdr.call_id);
+     }
+}
 void _create_session(struct sip_pkt* spkt_p)
 {
     struct session_info* ss = si_new_session();
@@ -559,6 +576,9 @@ void _update_session_for_ok(struct sip_pkt* spkt_p)
 {
     struct session_info* ss;
 //    int ok_cseq;
+    if(spkt_p->session_ok_cseq_register == 1)
+        return;
+        
     if(spkt_p->msg_hdr.call_id)
     {
        
@@ -588,7 +608,17 @@ void _update_session_for_ok(struct sip_pkt* spkt_p)
                     ss->called.port = spkt_p->rtp_port;
                                         
                     strncpy(ss->called.number,spkt_p->msg_hdr.to_number,sizeof(ss->called.number));
-                    ss->rtp_sniffer_tid = setup_rtp_sniffer(ss);
+                    if(ss->rtp_sniffer_tid == 0){
+                    
+                        sip_log("this sip session (%s) 's rtp not exist, setup rtp pthread\n",
+                                ss->call_id);
+                        ss->rtp_sniffer_tid = setup_rtp_sniffer(ss);
+                    }
+                    else
+                    {
+                        sip_log("this sip session (%s) 's rtp is exist!\n",
+                                ss->call_id);
+                    }
                 }
             }
             else
@@ -632,8 +662,18 @@ void _update_session(struct sip_pkt* spkt_p)
                     strncpy(ss->calling.number,spkt_p->msg_hdr.from_number,sizeof(ss->calling.number));
                     sip_log("I find the session (callid %s) calling number: %s \n",
                             ss->call_id,ss->calling.number);
-                    
-                    ss->rtp_sniffer_tid = setup_rtp_sniffer(ss);
+                            
+                     if(ss->rtp_sniffer_tid == 0)
+                     {
+                        sip_log("this sip session (%s) 's rtp not exist, setup rtp pthread\n",
+                                ss->call_id);
+                        ss->rtp_sniffer_tid = setup_rtp_sniffer(ss);
+                    }
+                    else
+                    {
+                        sip_log("this sip session (%s) 's rtp is exist!\n",
+                                ss->call_id);
+                    }
                 }
                 else
                 {     
@@ -692,7 +732,7 @@ void sync_session(struct sip_pkt* spkt_p)
     switch(spkt_p->state)
     {
         case SS_INVATE:
-        _create_session(spkt_p);
+            create_session(spkt_p);
         break;
         case SS_ACK:
         _update_session(spkt_p);

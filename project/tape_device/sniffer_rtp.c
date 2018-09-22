@@ -243,7 +243,7 @@ struct rttphdr{
 #error  "Please fix <asm/byteorder.h>"
 #endif
 
-int upload_the_mix_file(const struct rtp_session_info* n);
+int upload_the_mix_file( struct rtp_session_info* n);
 /**************************************************************/
 
 static int save_rtp_frame(FILE* fp,void* buffer,int len)
@@ -584,11 +584,24 @@ int linear_list_mix(struct rtp_session_info* rs)
     FILE* dest_fp;
     int tttt = 0;
     strftime(ring_time,256,"%Y-%m-%d-%H-%M-%S",&rs->ring_time);
+
+        if(rs->call_dir == SS_MODE_CALLING)
+    {
     
-    sprintf(save_file_name,"/tmp/from_%s_to_%s_startTime_%s_No_%d_fragid_%d.mix",
+    sprintf(save_file_name,"/tmp/fromLocal_%s_to_%s_startTime_%s_No_%d_fragid_%d.mix",
             rs->calling.number,rs->called.number,ring_time,
             rs->session_id,rs->mix_file_frag_count);
             
+    }
+    else
+    {
+    sprintf(save_file_name,"/tmp/from_%s_toLocal_%s_startTime_%s_No_%d_fragid_%d.mix",
+            rs->calling.number,rs->called.number,ring_time,
+            rs->session_id,rs->mix_file_frag_count);
+            
+    
+    }
+    
         log("save file name %s \n",save_file_name);    
         sprintf(rs->mix_file_name,"%s",save_file_name);
         dest_fp = fopen(save_file_name,"w");
@@ -691,8 +704,6 @@ static void session_talking_2(struct iphdr* iph,struct udphdr* udph,
     if((rs->called_mix_list_st.mix_ready_flag == 1) 
         &&(rs->calling_mix_list_st.mix_ready_flag == 1))
     {
-
-    
  //////   printf("---%s:%d rs->mix_file_frag_count %d "
  //   "called_mix_list_st pkt count %d  calling _pkt_count %d \n",
 //        __func__,__LINE__,rs->mix_file_frag_count,
@@ -703,7 +714,6 @@ static void session_talking_2(struct iphdr* iph,struct udphdr* udph,
         
         rs->mix_file_frag_info_caller = 1;
         upload_the_mix_file(rs);
-        rs->mix_file_frag_count++;
         
         rs->called_mix_list_st.mix_ready_flag = 0;
         rs->calling_mix_list_st.mix_ready_flag = 0;
@@ -723,6 +733,8 @@ char* get_rtp_type(u8 type)
     return "NA";
 }
 #define READ_BUF_SIZE 1024
+/* not use it*/
+#if 0
 int mix_the_linear_file(struct rtp_session_info* n)
 {
     char save_file_name[256] = {0};
@@ -745,9 +757,18 @@ int mix_the_linear_file(struct rtp_session_info* n)
 
         
     strftime(ring_time,256,"%Y-%m-%d-%H-%M-%S",&n->ring_time);
-                
-    sprintf(save_file_name,"/tmp/from_%s_to_%s_startTime_%s.mix",
-        n->calling.number,n->called.number,ring_time);
+    if(n->call_dir == SS_MODE_CALLING)
+    {
+    
+        sprintf(save_file_name,"/tmp/from_Local_%s_to_%s_startTime_%s.mix",
+            n->calling.number,n->called.number,ring_time);
+    }
+    else
+    {
+        sprintf(save_file_name,"/tmp/from_%s_to_Local_%s_startTime_%s.mix",
+            n->calling.number,n->called.number,ring_time);
+    
+    }
         
     log("save file name %s \n",save_file_name);    
     sprintf(n->mix_file_name,"%s",save_file_name);
@@ -793,7 +814,7 @@ int mix_the_linear_file(struct rtp_session_info* n)
     close(fp_called);
     return 0;
 }
-
+#endif
 int cul_rtp_end_time(struct rtp_session_info* n)
 {
 
@@ -815,14 +836,12 @@ int cul_rtp_end_time(struct rtp_session_info* n)
 caller_flag is 0 ,mean  the signal_handler
 fiag is 1, mean is 
 */
-int upload_the_mix_file(const struct rtp_session_info* n)
+int upload_the_mix_file(struct rtp_session_info* n)
 {
     int ret;
     struct upload_file_info ufi;
     char time_str[256]={0};
-    struct config_st* c = &g_config;
-    
-    
+    struct config_st* c = &g_config;    
     char ring_time[256]={0};
     
     
@@ -847,12 +866,16 @@ int upload_the_mix_file(const struct rtp_session_info* n)
     memset(time_str,0,sizeof(time_str));
     strftime(time_str,256,"%Y-%m-%d %H:%M:%S",&n->end_time);
     strncpy(ufi.call_end_time,time_str,sizeof(ufi.call_end_time));
-
+#if 0
     strftime(ring_time,256,"%Y-%m-%d-%H-%M-%S",&n->ring_time);  
     
-    sprintf(ufi.file_name,"from_%s_to_%s_startTime_%s_No_%d_fragid_%d.mix",
+    sprintf(ufi.file_name,"local_%s_from_%s_to_%s_startTime_%s_No_%d_fragid_%d.mix",
+    ufi.call_local_number,
             n->calling.number,n->called.number,ring_time,
             n->session_id,n->mix_file_frag_count);
+#else
+    strncpy(ufi.file_name,n->mix_file_name,sizeof(ufi.file_name));
+#endif
     if( n->mix_file_frag_info_caller == 0 
         && n->mix_file_frag_count == 0)
     {
@@ -876,6 +899,10 @@ int upload_the_mix_file(const struct rtp_session_info* n)
 #if 0
     ret = upload_mix_file(c->upload_http_url,&ufi);
 #endif
+    
+    n->mix_file_frag_count++;
+    /*  this function should be locked by curl_upload module
+    */
     ret = uploader_push_msg((struct upload_msg*)&ufi,sizeof(ufi));
     return ret;
 }
@@ -889,7 +916,7 @@ void handler_last_linear_list(struct rtp_session_info* n)
         n->called_mix_list_st.linear_buf_list;
        
      linear_list_mix(n);
-     n->mix_file_frag_flag = 2;//last frag
+     n->mix_file_frag_info_caller = 0;//last frag
      upload_the_mix_file(n);
 }
 static void sighandler(int s)

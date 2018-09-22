@@ -55,7 +55,7 @@ bool mix2(struct mixer* mix,char* data, size_t len, char* data2,
 	    t32 = (int)int64data[i];
 	    
 		t32 += (int)(inputdata[i]);
-		t32 = t32/2;
+		//t32 = t32/2;
 		
 		if(t32 < -32768)
 		    t32 = -32768;
@@ -101,7 +101,7 @@ bool mix(struct mixer* mix,char* data, size_t len, size_t* mixed_len)
 	    t32 = (int)int64data[i];
 	    
 		t32 += (int)(inputdata[i]);
-		t32 = t32/2;
+		///t32 = t32/2;
 		
 		if(t32 < -32768)
 		    t32 = -32768;

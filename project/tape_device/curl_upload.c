@@ -95,11 +95,8 @@ void set_up_formpost(struct curl_httppost** formpost,struct curl_httppost** last
                CURLFORM_COPYNAME, "FRAG_FLAG",
                CURLFORM_COPYCONTENTS, info->frag_flag,
                CURLFORM_END);
-
-               
-
-               
-    sprintf(path_and_filename,"/tmp/%s",info->file_name);
+             
+    sprintf(path_and_filename,"%s",info->file_name);
 
     curl_formadd((struct curl_httppost**)formpost,
                (struct curl_httppost**)lastptr,
@@ -117,8 +114,7 @@ static size_t server_return_funtion
 	memcpy((char*)stream,(char*)ptr,size*nmemb);
 	return size*nmemb;
 }
-
-
+#if 0
 int upload_mix_file(char* server_url,struct upload_file_info* file_info)
 {
   CURL *curl;
@@ -131,6 +127,7 @@ int upload_mix_file(char* server_url,struct upload_file_info* file_info)
   struct HttpPost *lastptr=NULL;
   struct curl_slist *headerlist=NULL;
   char buf[] = "Expect:";
+  int ret;
   char server_ret_msg[2048]={0};
 
   set_up_formpost((struct curl_httppost**)&formpost,(struct curl_httppost**)&lastptr,file_info);
@@ -210,10 +207,78 @@ int upload_mix_file(char* server_url,struct upload_file_info* file_info)
     curl_formfree((struct curl_httppost*)formpost);
 
     log("server reg msg: %s \n",server_ret_msg);
+    if(strlen(server_ret_msg) != 0)
+        ret  = 0;
+    else
+        ret  = -1;
     /* free slist */
     curl_slist_free_all (headerlist);
   }
-  return 0;
+  return ret;
+}
+#endif
+int upload_mix_file(char* server_url,struct upload_file_info* file_info)
+{
+  CURL *curl;
+//  CURLcode res;
+
+ // CURLM *multi_handle;
+  int still_running;
+
+  struct HttpPost *formpost=NULL;
+  struct HttpPost *lastptr=NULL;
+  struct curl_slist *headerlist=NULL;
+  char buf[] = "Expect:";
+  int ret;
+  CURLcode res = CURLE_OK; 
+  char server_ret_msg[2048]={0};
+
+  set_up_formpost((struct curl_httppost**)&formpost,(struct curl_httppost**)&lastptr,file_info);
+
+  curl = curl_easy_init();
+//  multi_handle = curl_multi_init();
+
+  /* initalize custom header list (stating that Expect: 100-continue is not
+     wanted */
+  headerlist = curl_slist_append(headerlist, buf);
+  if(curl) {
+    //int perform=0;
+
+    /* what URL that receives this POST */
+    curl_easy_setopt(curl, CURLOPT_URL,
+                                        server_url);
+                  //   "http://39.105.109.64:8099/record/box/reportOneRecord");
+
+    curl_easy_setopt(curl, CURLOPT_VERBOSE, 1);
+
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headerlist);
+    curl_easy_setopt(curl, CURLOPT_HTTPPOST, formpost);
+    curl_easy_setopt(curl,CURLOPT_WRITEFUNCTION,server_return_funtion);
+    
+    curl_easy_setopt(curl,CURLOPT_WRITEDATA,server_ret_msg);
+    res = curl_easy_perform(curl);  
+
+
+    if (res != CURLE_OK)
+    {
+        log("curl  res: %d \n",res);
+        ret = -2;
+    }
+    /* always cleanup */
+    curl_easy_cleanup(curl);
+
+    /* then cleanup the formpost chain */
+    curl_formfree((struct curl_httppost*)formpost);
+
+    log("server reg msg: %s \n",server_ret_msg);
+    if(strlen(server_ret_msg) != 0)
+        ret  = 0;
+    else
+        ret  = -1;
+    /* free slist */
+    curl_slist_free_all (headerlist);
+  }
+  return ret;
 }
 
 

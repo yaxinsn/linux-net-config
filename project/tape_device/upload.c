@@ -74,11 +74,18 @@ static int __upload_msg_handle(void* msg,int len,struct msg_engine_ctx* me)
 	struct upload_msg* pm = msg;
     upload_ctx_t* upload_s;
     char file_name[300]={0};
-    
+    int ret;
 	upload_s = container_of(me, upload_ctx_t, msg_eng);
-	upload_mix_file(upload_s->server_url,&pm->upload_file_info);
-	sprintf(file_name,"/tmp/%s",pm->upload_file_info.file_name);
-	remove(file_name);
+	ret = upload_mix_file(upload_s->server_url,&pm->upload_file_info);
+	if(ret == 0){
+	    sprintf(file_name,"%s",pm->upload_file_info.file_name);
+	    remove(file_name);
+	}
+	else
+	{
+	    log(" upload by curl failed ,so push the msg into msgpool, and upload again! \n");
+	    uploader_push_msg(pm,sizeof(*pm));
+	}
 	return 0;
 }
 

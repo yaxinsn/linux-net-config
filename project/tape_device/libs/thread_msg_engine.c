@@ -26,6 +26,8 @@ static int msg_engine_handler(struct msg_engine_ctx* _ctx )
 	{
 
 		_ctx->cb_func(entry->msg,entry->len,_ctx);
+	pthread_mutex_unlock(&_ctx->mutex);
+	pthread_mutex_lock(&_ctx->mutex);
 		TAILQ_REMOVE(&_ctx->msg_head,entry,node);
 		free(entry);
 	}
