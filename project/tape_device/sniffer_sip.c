@@ -370,16 +370,22 @@ int parse_msg_header(char* mh,struct sip_pkt* sp)
 	if(sp->msg_hdr.call_id == NULL)
         v = __parse_msg_header_str_element(mh,"Call-ID",&sp->msg_hdr.call_id);
     
-	if(sp->msg_hdr.from == NULL){
+	if(sp->msg_hdr.from == NULL)
+	{
         v = __parse_msg_header_str_element(mh,"From",&sp->msg_hdr.from);
-        parse_sip_number(sp->msg_hdr.from,&sp->msg_hdr.from_number);
-        sip_log("calling number: <%s> \n",sp->msg_hdr.from_number);
+        if(sp->msg_hdr.from != NULL)
+        {
+            parse_sip_number(sp->msg_hdr.from,&sp->msg_hdr.from_number);
+            sip_log("calling number: <%s> \n",sp->msg_hdr.from_number);
+        }
     }
 	if(sp->msg_hdr.to == NULL){
         v = __parse_msg_header_str_element(mh,"To",&sp->msg_hdr.to);
-        parse_sip_number(sp->msg_hdr.to,&sp->msg_hdr.to_number);
-        if(sp->msg_hdr.to_number)
+        if(sp->msg_hdr.to)
+        {
+            parse_sip_number(sp->msg_hdr.to,&sp->msg_hdr.to_number);
             sip_log("called number: <%s> \n",sp->msg_hdr.to_number);
+        }
 	}
 	if(sp->msg_hdr.date == NULL)
         v = __parse_msg_header_str_element(mh,"Date",&sp->msg_hdr.date);
