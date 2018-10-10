@@ -20,16 +20,17 @@ static int msg_engine_handler(struct msg_engine_ctx* _ctx )
 	
 	_entry_st* entry = NULL;
 	_entry_st* entry_next = NULL;
-	
+	int ret;
 	pthread_mutex_lock(&_ctx->mutex);
 	TAILQ_FOREACH_SAFE(entry,&_ctx->msg_head,node,entry_next)
 	{
 
-		_ctx->cb_func(entry->msg,entry->len,_ctx);
-	pthread_mutex_unlock(&_ctx->mutex);
-	pthread_mutex_lock(&_ctx->mutex);
-		TAILQ_REMOVE(&_ctx->msg_head,entry,node);
-		free(entry);
+		ret = _ctx->cb_func(entry->msg,entry->len,_ctx);
+	    if(ret == 0)
+	    {
+	    	TAILQ_REMOVE(&_ctx->msg_head,entry,node);
+		    free(entry);
+		}
 	}
 	
 	pthread_mutex_unlock(&_ctx->mutex);

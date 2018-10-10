@@ -84,7 +84,10 @@ static int __upload_msg_handle(void* msg,int len,struct msg_engine_ctx* me)
 	else
 	{
 	    log(" upload by curl failed ,so push the msg into msgpool, and upload again! \n");
-	    uploader_push_msg(pm,sizeof(*pm));
+
+	    return -1;
+
+	    //uploader_push_msg(pm,sizeof(*pm));
 	}
 	return 0;
 }
