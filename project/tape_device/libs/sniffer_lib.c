@@ -45,6 +45,21 @@ int get_device_info(char* device)
     printf("netmask is:%s %x\n",netmask,netmaskp);
 	return 0;
 }
+static int __set_nonblock(pcap_t* pd)
+{
+
+	char errbuf[PCAP_ERRBUF_SIZE];
+	int ret;
+	ret = pcap_setnonblock(pd,1,errbuf);
+	if(ret)
+	{
+	    printf("pcap_setnonblock: error %s \n",errbuf);
+	    return -1;
+	}
+	return 0;
+	
+
+}
 /*
 open_pcap_file 
 device :指定网卡
@@ -82,6 +97,7 @@ pcap_t* open_pcap_file(const char* device,int snaplen,int promise,int to_ms)
         printf("pcap_setfilter error %d %s\n",errno,strerror(errno));
     }
 	printf("---------%s:%d---pd %p-\n",__func__,__LINE__,pd);
+	__set_nonblock(pd);
 #endif    
 	return   pd;     
 }

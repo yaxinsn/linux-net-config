@@ -117,6 +117,7 @@ struct rtp_session_info
      int mix_file_frag_count;
      int mix_file_frag_info_caller;  //   0 is user hung up. the rtp is stop;   1 is session_talking_2
      int session_id;
+     int exit_flag;
 };
 
 typedef struct linear_buf_st
@@ -150,6 +151,7 @@ struct rtp_session_info* _rtp_new_session()
     pthread_mutex_lock(&rtp_ctx.head_lock);
     list_add(&rs->node,&rtp_ctx.rtp_head);
     pthread_mutex_unlock(&rtp_ctx.head_lock);
+    rs->exit_flag = 0;
     return rs;
 }
 void _rtp_del_session(struct rtp_session_info* si)
@@ -173,7 +175,6 @@ struct rtp_session_info* _rtp_find_session(pthread_t   thread_id)
     
     list_for_each_entry_safe(p,n,rtp_head,node)
     {
-
         if(thread_id == p->thread_id)
         {
             return p;
@@ -919,53 +920,41 @@ void handler_last_linear_list(struct rtp_session_info* n)
      n->mix_file_frag_info_caller = 0;//last frag
      upload_the_mix_file(n);
 }
+static int finish_rtp(struct rtp_session_info* n)
+{
+    int retval=3;
+    
+    log("I(%ul)  enter finish_rtp \n",pthread_self());
+    time(&n->stop_time_stamp);
+    cul_rtp_end_time(n);
+            
+    pcap_close(n->pd);
+    handler_last_linear_list(n);
+         
+    _rtp_del_session(n);
+    log("I(%ul) and finish  \n",pthread_self());
+    pthread_exit(&retval);
+    return 0;
+}
+
 static void sighandler(int s)
 {
-        int retval = 3;
-        struct rtp_session_info* n;
+    int retval = 3;
+    struct rtp_session_info* n;
 
-        
-        n = _rtp_find_session(pthread_self());
-        if(n)
-        {
-        log("I  find rtp session -------n->rtp_typ %d-----\n",n->rtp_type);
-            time(&n->stop_time_stamp);
-                cul_rtp_end_time(n);
-            
-            pcap_close(n->pd);
- #if 0           
-            if(n->save_called_fp)
-                fclose(n->save_called_fp);
-            if(n->save_calling_fp)
-                fclose(n->save_calling_fp);
-
-            if(n->save_mix_fp)
-                fclose(n->save_mix_fp);
-                
-            if(n->save_calling_linear_fp)
-                fclose(n->save_calling_linear_fp);
-            
-            if(n->save_called_linear_fp)
-                fclose(n->save_called_linear_fp);
-#endif
-           handler_last_linear_list(n);
-
-            
-           // mix_the_linear_file(n);    
-
-           
-           //  remove(n->called_name_linear);
-           //  remove(n->calling_name_linear);
-          //   remove(n->mix_file_name);
-             
-            _rtp_del_session(n);
-        }
-        else
-        {
-            log_err("not find rtp session \n");
-        }
-        log(" %u thread quit \n", (unsigned long)pthread_self());
-        pthread_exit(&retval);
+    log("I(%ul) recv a signal %d\n",pthread_self(),s);
+    n = _rtp_find_session(pthread_self());
+    if(n)
+    {
+        log("I(%ul) find the session info and finish it \n",pthread_self());
+        finish_rtp(n);
+    }
+    else
+    {
+        log_err("not find rtp session \n");
+    }
+    log(" %u thread quit-------- \n", (unsigned long)pthread_self());
+    pthread_exit(&retval);
         
 }
 
@@ -1035,21 +1024,36 @@ static void sighandler(int s)
 #endif
 int thread_kill(pthread_t thread_id)
 {
-        int kill_ret = pthread_kill(thread_id,SIGQUIT);
-            //log("%s:%d ret %d \n",__func__,__LINE__,kill_ret);
-        if(kill_ret == ESRCH)
-        {
-                log("the tid is not exist\n");
-        }
-        else if(kill_ret == EINVAL)
-        {
-                log("unvalide signal\n");
-        }
-        else
-        {
-            log("the tid is exist\n");
-        }
-        return 0;
+
+    int kill_ret;
+
+    struct rtp_session_info* n;
+
+    n = _rtp_find_session(thread_id);
+    if(n)
+    {
+        log("I(%ul) set (%ul)'s exit_flag \n",pthread_self(),thread_id);
+        n->exit_flag = 1;
+     //return 0; //debug . will delet return.
+    }
+                
+//step 2;
+    kill_ret = pthread_kill(thread_id,SIGQUIT);
+        //log("%s:%d ret %d \n",__func__,__LINE__,kill_ret);
+    if(kill_ret == ESRCH)
+    {
+            log("the tid is not exist\n");
+    }
+    else if(kill_ret == EINVAL)
+    {
+            log("unvalide signal\n");
+    }
+    else
+    {
+        log("the tid is exist\n");
+    }
+    
+    return 0;
 }
 
 void close_rtp_sniffer(struct session_info* ss)
@@ -1095,10 +1099,23 @@ static void sniffer_handle_rtp(u_char * user, const struct pcap_pkthdr * packet_
 {
 
 	int ret = 0;
-    
+	{
+    	struct rtp_session_info* n;
+        n = _rtp_find_session(pthread_self());
+        if(n)
+        {
+            if(n->exit_flag)
+            {
+                log("I(%ul) get my exit_flag ,finish it \n",pthread_self());
+               // finish_rtp(n);
+               finish_rtp(n);
+            }
+        }
+    }
 	const struct pcap_pkthdr* phdr = packet_header;
 	struct iphdr* iph = NULL;
 	struct udphdr* udph = NULL;
+
 	
 	ret = check_iphdr(phdr,packet_content,&iph);
 	if(ret != 0){
@@ -1130,6 +1147,11 @@ static void* sniffer_rtp_loop1(void* arg)
 
 	while(1)
 	{
+	    if(rs->exit_flag !=0)
+	    {
+	        log("I(%ul) get exit flag , so I call finish_rtp rtp_session_info's tid (%ul) \n",pthread_self(),rs->thread_id);
+	        finish_rtp(rs);
+	    }
 		sniffer_rtp_loop2(pd,arg);
 	}
 	return NULL;
@@ -1140,7 +1162,6 @@ static pcap_t* init_sniffer_rtp(struct session_info* ss)
 	char filter[200] = {0};
 	char callingip_str[32] = {0};
 	char calledip_str[32] = {0};
-	
     pcap_t* pd=0;
     signal(SIGQUIT, sighandler);
 	//pd = open_pcap_file("enp0s3",65535,1,0);
@@ -1149,7 +1170,7 @@ static pcap_t* init_sniffer_rtp(struct session_info* ss)
 	{
 		log("open_pcap_file failed ! \n");
 		return NULL;
-	}	
+	}
 	sprintf(callingip_str,"%s",inet_ntoa(ss->calling.ip));
 	sprintf(calledip_str,"%s",inet_ntoa(ss->called.ip));
 	sprintf(filter,"\(udp and host %s and port %d \) or \(udp and host %s and port %d \) ",
