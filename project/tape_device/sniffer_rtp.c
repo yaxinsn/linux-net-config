@@ -924,7 +924,7 @@ static int finish_rtp(struct rtp_session_info* n)
 {
     int retval=3;
     
-    log("I(%ul)  enter finish_rtp \n",pthread_self());
+    log("I(%u)  enter finish_rtp \n",pthread_self());
     time(&n->stop_time_stamp);
     cul_rtp_end_time(n);
             
@@ -932,7 +932,7 @@ static int finish_rtp(struct rtp_session_info* n)
     handler_last_linear_list(n);
          
     _rtp_del_session(n);
-    log("I(%ul) and finish  \n",pthread_self());
+    log("I(%u) and finish  \n",pthread_self());
     pthread_exit(&retval);
     return 0;
 }
@@ -942,11 +942,11 @@ static void sighandler(int s)
     int retval = 3;
     struct rtp_session_info* n;
 
-    log("I(%ul) recv a signal %d\n",pthread_self(),s);
+    log("I(%u) recv a signal %d\n",pthread_self(),s);
     n = _rtp_find_session(pthread_self());
     if(n)
     {
-        log("I(%ul) find the session info and finish it \n",pthread_self());
+        log("I(%u) find the session info and finish it \n",pthread_self());
         finish_rtp(n);
     }
     else
@@ -1032,7 +1032,7 @@ int thread_kill(pthread_t thread_id)
     n = _rtp_find_session(thread_id);
     if(n)
     {
-        log("I(%ul) set (%ul)'s exit_flag \n",pthread_self(),thread_id);
+        log("I(%u) set (%u)'s exit_flag \n",pthread_self(),thread_id);
         n->exit_flag = 1;
      //return 0; //debug . will delet return.
     }
@@ -1066,7 +1066,7 @@ void close_rtp_sniffer(struct session_info* ss)
     if(ss->rtp_sniffer_tid)
     {
     
-        log(" I %ul kill %ul thread(rtp) \n",(unsigned long)pthread_self()
+        log(" I (%u) kill %ul thread(rtp) \n",(unsigned long)pthread_self()
                 ,(unsigned long)ss->rtp_sniffer_tid);
 #if 0
         n = _rtp_find_session(ss->rtp_sniffer_tid);
@@ -1106,7 +1106,7 @@ static void sniffer_handle_rtp(u_char * user, const struct pcap_pkthdr * packet_
         {
             if(n->exit_flag)
             {
-                log("I(%ul) get my exit_flag ,finish it \n",pthread_self());
+                log("I(%u) get my exit_flag ,finish it \n",pthread_self());
                // finish_rtp(n);
                finish_rtp(n);
             }
@@ -1149,7 +1149,7 @@ static void* sniffer_rtp_loop1(void* arg)
 	{
 	    if(rs->exit_flag !=0)
 	    {
-	        log("I(%ul) get exit flag , so I call finish_rtp rtp_session_info's tid (%ul) \n",pthread_self(),rs->thread_id);
+	        log("I(%u) get exit flag , so I call finish_rtp rtp_session_info's tid (%u) \n",pthread_self(),rs->thread_id);
 	        finish_rtp(rs);
 	    }
 		sniffer_rtp_loop2(pd,arg);

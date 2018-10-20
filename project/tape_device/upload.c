@@ -109,7 +109,7 @@ pthread_t uploader_start(void)
 	upload_init();
 	tid = msg_engine_start(&upload_ctx.msg_eng,"upload");
 	ttid = (long)tid;
-	log("tid %ul, ttid %ul \n",tid,ttid);
+	log("tid %u, ttid %u \n",tid,ttid);
 	if(ttid == 0)
 		return 0;
 	
