@@ -185,6 +185,10 @@ char* __find_msg_body_key(const char* src,const char* key,int* v_len)
     return find_key_from_line(src,key,v_len,NULL);
 
 }
+/**
+从src中找到key，然后把key后面的内容copy到dest中。
+**dest 返回已经copy好的内容的地址。
+**/
 const char* __parse_msg_heade_body_str_element
 (const char* src,const char* key,char** dest)
 {
@@ -203,8 +207,20 @@ const char* __parse_msg_heade_body_str_element
     }
     return v;
 }
-
 int parse_msg_body(struct sip_pkt* sp)
+{
+	int ret = 0;
+	parse_msg_body_sdp_media_connect(sp);
+}
+/*
+这个函数有问题，
+SDP报文中有多组(media connect) 如audio和video。
+还有通信两方的信息。
+
+它只从sdp里解析出了第一组 audio （media和connect info）。
+一般而言 第一组audio是我们最想要的。
+*/
+int parse_msg_body_sdp_media_connect(struct sip_pkt* sp)
 {
     
     char* b = sp->sip_msg_body;
@@ -401,6 +417,14 @@ int parse_msg_header(char* mh,struct sip_pkt* sp)
                 sp->session_ok_cseq_register = 1;
         }
     }
+	if(sp->msg_hdr.remote_party_id == NULL){
+			__parse_msg_header_str_element(mh,"Remote-Party-ID",&sp->msg_hdr.remote_party_id);
+			if(sp->msg_hdr.remote_party_id != NULL)
+			{
+				parse_sip_number(sp->msg_hdr.remote_party_id,&sp->msg_hdr.remote_party_id_phone_number);
+	            sip_log("Remote-Party-ID number: <%s> \n",sp->msg_hdr.remote_party_id_phone_number);
+			}
+		}
 
 
     v= __find_msg_hdr_key(mh,key,&len);
@@ -601,8 +625,20 @@ void _update_session_for_ok(struct sip_pkt* spkt_p)
                     ss->called.ip.s_addr = spkt_p->rtp_ip.s_addr;
                     ss->called.port = spkt_p->rtp_port;
                     //ss->called.number =strdup(spkt_p->msg_hdr.to_number);
+                    if(spkt_p->msg_hdr.remote_party_id_phone_number)
+                    {
+                    	strncpy(ss->called.number,
+							spkt_p->msg_hdr.remote_party_id_phone_number,
+							sizeof(ss->called.number));
+                    }
+                    else
+					{
+                    	strncpy(ss->called.number,
+                    		spkt_p->msg_hdr.to_number,
+                    		sizeof(ss->called.number));
                     
-                    strncpy(ss->called.number,spkt_p->msg_hdr.to_number,sizeof(ss->called.number));
+                    }
+                    //strncpy(ss->called.number,spkt_p->msg_hdr.to_number,sizeof(ss->called.number));
                 }
             }
             else if  (ss->mode ==SS_MODE_CALLING)
@@ -612,9 +648,20 @@ void _update_session_for_ok(struct sip_pkt* spkt_p)
                 {
                     ss->called.ip.s_addr = spkt_p->rtp_ip.s_addr;
                     ss->called.port = spkt_p->rtp_port;
-                                        
-                    strncpy(ss->called.number,spkt_p->msg_hdr.to_number,sizeof(ss->called.number));
-                    if(ss->rtp_sniffer_tid == 0){
+                    if(spkt_p->msg_hdr.remote_party_id_phone_number)
+                    {
+                    	strncpy(ss->called.number,
+							spkt_p->msg_hdr.remote_party_id_phone_number,
+							sizeof(ss->called.number));
+                    }
+                    else
+					{
+                    	strncpy(ss->called.number,
+                    		spkt_p->msg_hdr.to_number,
+                    		sizeof(ss->called.number));
+                    
+                    }
+					if(ss->rtp_sniffer_tid == 0){
                     
                         sip_log("this sip session (%s) 's rtp not exist, setup rtp pthread\n",
                                 ss->call_id);
@@ -775,7 +822,8 @@ void __free_sip_pkt(struct sip_pkt* spkt_p)
     FREE(msg_hdr->from_number);
     FREE(msg_hdr->to_number);
 	
-    
+    FREE(msg_hdr->remote_party_id);
+    FREE(msg_hdr->remote_party_id_phone_number);    
 }
 //int handle_sip_pkt_content( struct udphdr* udph)
 int handle_sip_pkt_content(void* sip_payload,int len)

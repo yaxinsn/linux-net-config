@@ -27,10 +27,12 @@ struct sip_msg_header
 	char* allow;
 	char* date;
 	int content_length;
-
 	char* from_number; //calling number;
 	char* to_number;   //called number;
+
 	
+	char* remote_party_id;
+	char* remote_party_id_phone_number;
 };
 enum sip_session_state
 {
