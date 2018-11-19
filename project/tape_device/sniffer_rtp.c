@@ -1055,6 +1055,22 @@ int thread_kill(pthread_t thread_id)
     
     return 0;
 }
+void update_rtp_session_number(struct session_info* ss)
+{
+	struct rtp_session_info* n;
+    if(ss->rtp_sniffer_tid)
+    {
+		n = _rtp_find_session(ss->rtp_sniffer_tid);
+    	if(n)
+    	{
+        	log("I(%u) update (%u)'s calling and called number \n",
+				pthread_self(),
+				ss->rtp_sniffer_tid);   
+    		strncpy(n->called.number, ss->called.number,sizeof(n->called.number));
+    		strncpy(n->calling.number, ss->calling.number,sizeof(n->calling.number));
+    	}
+    }
+}
 
 void close_rtp_sniffer(struct session_info* ss)
 {
