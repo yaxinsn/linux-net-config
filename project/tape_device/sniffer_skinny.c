@@ -345,6 +345,16 @@ typedef unsigned short USHORT;
     ((pucBuf) += (ulLen));\
 }
 
+#define LOAD_STR_LINE(src,dest,dest_len,dlim) do{       \
+        int t = 0;                                      \
+        while(*(src) != (dlim)&& t<dest_len)            \
+        {                                               \
+                *(dest+t) = *(src);                     \
+                (src)++;                                \
+                t++;                                    \
+        }                                               \
+        (src)++;                                        \
+}while(0);
 
 struct session_info* skinny_get_session(char* callid)
 {
@@ -861,10 +871,17 @@ void handle_callinfo2_function(skinny_opcode_map_t* skinny_op, u8* msg,u32 len,
 	u32 callInstance;
 	u32 callSecurityStatus;
 	u32 partyPiRestrictionBits;
+	char callingParty[33] = {0};
+	char AlternateCallingParty[33] = {0};
+	
+	char calledParty[33] = {0};
+	char originalCalledParty[33] = {0};
+	char lastRedirectingParty[33] = {0};
+	char HuntPilotNumber[33] = {0};
 	//char* calling_number = NULL;
 	//char* called_number = NULL;
 	//char* AlternateCalling_number = NULL;
-    char* t;
+
 	
 	struct session_info* ss;
 	
@@ -893,7 +910,25 @@ void handle_callinfo2_function(skinny_opcode_map_t* skinny_op, u8* msg,u32 len,
         skinny_log_err("not find this callid %d \n",callReference);
         return;
     }
-    
+	LOAD_STR_LINE(p, callingParty, 32, 0);
+	LOAD_STR_LINE(p, AlternateCallingParty, 32, 0);	
+	LOAD_STR_LINE(p, calledParty, 32, 0);	
+	LOAD_STR_LINE(p, originalCalledParty, 32, 0);
+	LOAD_STR_LINE(p, lastRedirectingParty, 32, 0);
+	skinny_log("callingParty:<%s>\n",callingParty);
+	skinny_log("AlternateCallingParty:<%s>\n",AlternateCallingParty);
+	skinny_log("calledParty:<%s>\n",calledParty);
+	skinny_log("originalCalledParty:<%s>\n",originalCalledParty);
+	skinny_log("lastRedirectingParty:<%s>\n",lastRedirectingParty);
+	
+	strncpy(ss->called.number,calledParty,sizeof(ss->called.number));
+	strncpy(ss->calling.number,callingParty,sizeof(ss->calling.number));
+	skinny_log("I get called number %s,calling number %s \n",
+    ss->called.number,ss->calling.number);
+
+	update_rtp_session_number(ss);
+	return;
+#if 0    
 	if(callType == 2) //outBoundCall
 	{
     	t = (char*)p;
@@ -961,10 +996,8 @@ void handle_callinfo2_function(skinny_opcode_map_t* skinny_op, u8* msg,u32 len,
 	{
 	    skinny_log_err("I don't know this call type %d \n",callType);
 	}
-skinny_log("I get called number %s,calling number %s \n",
-    ss->called.number,ss->calling.number);
+#endif	
 
-	return;
 }
 
 void handle_DialedNumber(skinny_opcode_map_t* skinny_op, u8* msg,u32 len,
