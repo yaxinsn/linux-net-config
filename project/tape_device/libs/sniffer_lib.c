@@ -168,14 +168,16 @@ int check_iphdr( const struct pcap_pkthdr * phdr, const u_char * pkt,
 	{
 		if(ethh->h_proto == htons(ETH_P_8021Q))
 		{
-			vlan_proto = &ethh->h_proto;
+			vlan_proto = &(ethh->h_proto);
 			vlan_proto += 2;// shift 4 byte;
 			if(*vlan_proto != htons(ETH_P_IP)){
 				log_err(" pkt is vlan pkt,but not a vlanip pkt; vlan_proto %x \n",htons(*vlan_proto));
 				return -1;
 			}
 			else
-				iph = (struct iphdr*)vlan_proto+1;
+			{
+				iph = (struct iphdr*)(vlan_proto+1);
+			}
 		}
 		else
 		{
