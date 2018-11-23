@@ -356,6 +356,9 @@ typedef unsigned short USHORT;
         (src)++;                                        \
 }while(0);
 
+
+char g_LineStatV2_lineDirNumber[128]={0};
+
 struct session_info* skinny_get_session(char* callid)
 {
 	struct session_info* ss=si_find_session(callid);
@@ -535,7 +538,6 @@ void handle_start_media_transmission(skinny_opcode_map_t* skinny_op, u8* msg,u32
 	        ss->calling.ip.s_addr = remoteIpv4Address;
 	        ss->calling.port = (remotePort);
 	    }
-	    __start_rtp_sinnfer(ss);
 	}
 	else
 	{
@@ -589,7 +591,6 @@ void handle_open_receive_channel_ack(skinny_opcode_map_t* skinny_op, u8* msg,u32
 	        ss->called.ip.s_addr = ipv4Address;
 	        ss->called.port = (Port);
 	    }
-	    __start_rtp_sinnfer(ss);
 	}	
 	else
 	{
@@ -849,6 +850,12 @@ void handle_CallState(skinny_opcode_map_t* skinny_op, u8* msg,u32 len,
 	    skinny_log(" I am process callstate ,so I am calling. callReference %d \n",callReference);
 	    
         
+    }
+    else if(callState == 0x05) //connected.
+    {
+    	
+		skinny_log(" process callstate Connected , I start the rtp sinnfer. callReference %d \n",callReference);
+	    __start_rtp_sinnfer(ss);
     }
     else
     {
