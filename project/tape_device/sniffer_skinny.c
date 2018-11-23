@@ -878,13 +878,24 @@ void handle_callinfo2_function(skinny_opcode_map_t* skinny_op, u8* msg,u32 len,
 	u32 callInstance;
 	u32 callSecurityStatus;
 	u32 partyPiRestrictionBits;
-	char callingParty[33] = {0};
-	char AlternateCallingParty[33] = {0};
 	
+	char callingParty[33] = {0};
+	char AlternateCallingParty[33] = {0};	
 	char calledParty[33] = {0};
 	char originalCalledParty[33] = {0};
 	char lastRedirectingParty[33] = {0};
+
+	char cgpnVoiceMailbox[128] = {0};
+	char cdpnVoiceMailbox[128] = {0};
+	char originalCdpnVoiceMailbox[128] = {0};
+	char lastRedirectingVoiceMailbox[128] = {0};
+	char callingPartyName[128] = {0};
+	char calledPartyName[128] = {0};
+	char originalCalledPartyName[128] = {0};
+	char lastRedirectingPartyName[128] = {0};
+	
 	char HuntPilotNumber[33] = {0};
+
 	//char* calling_number = NULL;
 	//char* called_number = NULL;
 	//char* AlternateCalling_number = NULL;
@@ -931,8 +942,42 @@ void handle_callinfo2_function(skinny_opcode_map_t* skinny_op, u8* msg,u32 len,
 	strncpy(ss->called.number,calledParty,sizeof(ss->called.number));
 	strncpy(ss->calling.number,callingParty,sizeof(ss->calling.number));
 	skinny_log("I get called number %s,calling number %s \n",
-    ss->called.number,ss->calling.number);
+    	ss->called.number,ss->calling.number);
+	
+	LOAD_STR_LINE(p, cgpnVoiceMailbox, 127, 0);
+	skinny_log("cgpnVoiceMailbox:<%s>\n",cgpnVoiceMailbox);
+	LOAD_STR_LINE(p, cdpnVoiceMailbox, 127, 0);
+	skinny_log("cdpnVoiceMailbox:<%s>\n",cdpnVoiceMailbox);
+	
+	LOAD_STR_LINE(p, originalCdpnVoiceMailbox, 127, 0);
+	skinny_log("originalCdpnVoiceMailbox:<%s>\n",originalCdpnVoiceMailbox);
+	
+	LOAD_STR_LINE(p, lastRedirectingVoiceMailbox, 127, 0);
+	skinny_log("lastRedirectingVoiceMailbox:<%s>\n",lastRedirectingVoiceMailbox);
+	
+	LOAD_STR_LINE(p, callingPartyName, 127, 0);
+	skinny_log("callingPartyName:<%s>\n",callingPartyName);
+	
+	LOAD_STR_LINE(p, calledPartyName, 127, 0);
+	skinny_log("calledPartyName:<%s>\n",calledPartyName);
+	
+	LOAD_STR_LINE(p, originalCalledPartyName, 127, 0);
+	skinny_log("originalCalledPartyName:<%s>\n",originalCalledPartyName);
+	LOAD_STR_LINE(p, lastRedirectingPartyName, 127, 0);
+	skinny_log("lastRedirectingPartyName:<%s>\n",lastRedirectingPartyName);
+	LOAD_STR_LINE(p, HuntPilotNumber, 127, 0);
+	skinny_log("HuntPilotNumber:<%s>\n",HuntPilotNumber);
 
+	if(HuntPilotNumber[0] !=0)
+	{
+		skinny_log("Bingo, I get a huntPilotNumber, "
+			"and change the called number to phone number(%s)",g_LineStatV2_lineDirNumber);
+		if(g_LineStatV2_lineDirNumber[0] != 0)
+		{
+			strncpy(ss->called.number,g_LineStatV2_lineDirNumber,sizeof(ss->called.number));
+		
+		}
+	}
 	update_rtp_session_number(ss);
 	return;
 #if 0    
@@ -1047,7 +1092,67 @@ void handle_DialedNumber(skinny_opcode_map_t* skinny_op, u8* msg,u32 len,
 	
 	return;
 }
+/* 在电话注册时，得到电话的号码。 */
+void handle_LineStateV2 (
+		skinny_opcode_map_t* skinny_op, 
+		u8* msg,u32 len,
+		skinny_info_t* skinny_info)
+{
 
+
+	u8* p = msg;
+
+	u32 lineNumber;
+	u32 lineType;
+	char lineDirNumber[33]={0};
+	char lineFullyQualifiedDisplayName[33]={0};
+	char lineTextLabel[33] = {0};
+	
+	CW_LOAD_U32(lineNumber,p);
+	CW_LOAD_U32(lineType,p);
+	
+	LOAD_STR_LINE(p, lineDirNumber, 32, 0);
+	LOAD_STR_LINE(p, lineFullyQualifiedDisplayName, 32, 0);
+	LOAD_STR_LINE(p, lineTextLabel, 32, 0);
+	skinny_log("lineNumber:%d\n",lineNumber);
+	skinny_log("lineType:%d\n",lineType);
+	skinny_log("lineDirNumber:%s\n",lineDirNumber);
+	skinny_log("lineFullyQualifiedDisplayName:%s\n",lineFullyQualifiedDisplayName);
+
+	skinny_log("lineTextLabel:%s\n",lineTextLabel);
+	if(lineDirNumber[0] != 0)
+	{
+		if(g_LineStatV2_lineDirNumber[0] == 0)
+		{
+			skinny_log("init set  g_LineStatV2_lineDirNumber \n");
+			strncpy(g_LineStatV2_lineDirNumber,lineDirNumber,
+			sizeof(g_LineStatV2_lineDirNumber)-1);
+			
+		}
+		else
+		{
+			skinny_log(" g_LineStatV2_lineDirNumber's value <%s> \n",
+				g_LineStatV2_lineDirNumber);
+			if(!strncmp(g_LineStatV2_lineDirNumber,lineDirNumber,
+				strlen(g_LineStatV2_lineDirNumber)))	
+			{
+				skinny_log("g_LineStatV2_lineDirNumber == lineDirNumber, not update it \n");
+			}
+			else
+			{
+				skinny_log("g_LineStatV2_lineDirNumber != lineDirNumber, must update it \n");
+				
+				strncpy(g_LineStatV2_lineDirNumber,lineDirNumber,
+				sizeof(g_LineStatV2_lineDirNumber)-1);
+			}
+		}
+	}
+	else
+	{
+		skinny_log("not get lineDirNumber \n");
+	}
+}
+							
 
 
 void handle_default_function (skinny_opcode_map_t* skinny_op, u8* msg,u32 len,
@@ -1206,7 +1311,7 @@ static  skinny_opcode_map_t skinny_opcode_map[] = {
   {0x0144, handle_default_function               , SKINNY_MSGTYPE_EVENT    , "DisplayPriNotifyV2Message"},
   {0x0145, handle_default_function            , SKINNY_MSGTYPE_EVENT    , "DisplayPromptStatusV2Message"},
   {0x0146, handle_default_function                 , SKINNY_MSGTYPE_RESPONSE , "FeatureStatV2ResMessage"},
-  {0x0147, handle_default_function                    , SKINNY_MSGTYPE_RESPONSE , "LineStatV2ResMessage"},
+  {0x0147, handle_LineStateV2                    , SKINNY_MSGTYPE_RESPONSE , "LineStatV2ResMessage"},
   {0x0148, handle_default_function              , SKINNY_MSGTYPE_RESPONSE , "ServiceURLStatV2ResMessage"},
   {0x0149, handle_default_function               , SKINNY_MSGTYPE_RESPONSE , "SpeedDialStatV2ResMessage"},
   {0x014a, handle_callinfo2_function                       , SKINNY_MSGTYPE_EVENT    , "CallInfoV2Message"},
