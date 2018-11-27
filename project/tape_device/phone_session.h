@@ -85,6 +85,7 @@ struct session_info //与信令协议 sip ,skinny无关。是更高一级的应�
 
     int skinny_state;
     
+    int skinny_callstate_connected;
      
 }; /* 用于记录本次通信的两者的ip, port, 电话号码，用户名等等。*/
 

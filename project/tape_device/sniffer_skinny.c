@@ -473,8 +473,11 @@ void handle_stop_media_transmission(skinny_opcode_map_t* skinny_op,
 
 void __start_rtp_sinnfer(struct session_info* ss)
 {
-    if((ss->called.ip.s_addr !=0)&&(ss->calling.ip.s_addr !=0))
-        ss->rtp_sniffer_tid = setup_rtp_sniffer(ss);
+    if((ss->called.ip.s_addr !=0)
+		&&(ss->calling.ip.s_addr !=0)
+		&&(ss->skinny_callstate_connected == 1))
+	        ss->rtp_sniffer_tid = setup_rtp_sniffer(ss);
+
 
 }
 
@@ -538,6 +541,7 @@ void handle_start_media_transmission(skinny_opcode_map_t* skinny_op, u8* msg,u32
 	        ss->calling.ip.s_addr = remoteIpv4Address;
 	        ss->calling.port = (remotePort);
 	    }
+	    __start_rtp_sinnfer(ss);
 	}
 	else
 	{
@@ -591,6 +595,7 @@ void handle_open_receive_channel_ack(skinny_opcode_map_t* skinny_op, u8* msg,u32
 	        ss->called.ip.s_addr = ipv4Address;
 	        ss->called.port = (Port);
 	    }
+	    __start_rtp_sinnfer(ss);
 	}	
 	else
 	{
@@ -837,23 +842,24 @@ void handle_CallState(skinny_opcode_map_t* skinny_op, u8* msg,u32 len,
 		skinny_log_err("no this callid %s session\n",callid);
 		return;
 	}
-	if(callState == 0x4)//ring in;
+	ss->skinny_state = callState;
+	if(callState == SKINNY_CALLSTATE_RING_IN)//ring in;
 	{
 	
 	    ss->mode = SS_MODE_CALLED;
 	    skinny_log(" I am ringin callstate ,so I am called. \n");
 	    
 	}
-    else if(callState == 0xc)//Proceed
+    else if(callState == SKINNY_CALLSTATE_Proceed)//Proceed
     {
 	    ss->mode = SS_MODE_CALLING;
 	    skinny_log(" I am process callstate ,so I am calling. callReference %d \n",callReference);
 	    
         
     }
-    else if(callState == 0x05) //connected.
+    else if(callState == SKINNY_CALLSTATE_CONNECTED) //connected.
     {
-    	
+    	ss->skinny_callstate_connected = 1;
 		skinny_log(" process callstate Connected , I start the rtp sinnfer. callReference %d \n",callReference);
 	    __start_rtp_sinnfer(ss);
     }
