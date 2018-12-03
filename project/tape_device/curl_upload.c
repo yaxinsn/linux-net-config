@@ -56,6 +56,12 @@ void set_up_formpost(struct curl_httppost** formpost,struct curl_httppost** last
 
     curl_formadd((struct curl_httppost**)formpost,
                (struct curl_httppost**)lastptr,
+               CURLFORM_COPYNAME, "CALLEE_GROUP_NUMBER",
+               CURLFORM_COPYCONTENTS, info->called_group_number,
+               CURLFORM_END);
+
+    curl_formadd((struct curl_httppost**)formpost,
+               (struct curl_httppost**)lastptr,
                CURLFORM_COPYNAME, "CALL_DIRECTION",
                CURLFORM_COPYCONTENTS, info->call_direction,
                CURLFORM_END);

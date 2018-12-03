@@ -627,6 +627,8 @@ void _update_session_for_ok(struct sip_pkt* spkt_p)
                     //ss->called.number =strdup(spkt_p->msg_hdr.to_number);
                     if(spkt_p->msg_hdr.remote_party_id_phone_number)
                     {
+                    	strncpy(ss->called_group_number,ss->called.number,
+							sizeof(ss->called_group_number));
                     	strncpy(ss->called.number,
 							spkt_p->msg_hdr.remote_party_id_phone_number,
 							sizeof(ss->called.number));
@@ -650,6 +652,9 @@ void _update_session_for_ok(struct sip_pkt* spkt_p)
                     ss->called.port = spkt_p->rtp_port;
                     if(spkt_p->msg_hdr.remote_party_id_phone_number)
                     {
+                    /* 把原来的called number放到called_group_number里，这是被叫的组号。 */
+                    	strncpy(ss->called_group_number,ss->called.number,
+							sizeof(ss->called_group_number));
                     	strncpy(ss->called.number,
 							spkt_p->msg_hdr.remote_party_id_phone_number,
 							sizeof(ss->called.number));

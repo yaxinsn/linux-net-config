@@ -17,6 +17,7 @@ struct upload_file_info
     
     char  frag_flag[3]; //0 no,1 yes, 2 the last frag.
     
+    char  called_group_number[64];
 };
 
 

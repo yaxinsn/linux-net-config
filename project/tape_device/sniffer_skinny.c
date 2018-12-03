@@ -944,8 +944,31 @@ void handle_callinfo2_function(skinny_opcode_map_t* skinny_op, u8* msg,u32 len,
 	skinny_log("calledParty:<%s>\n",calledParty);
 	skinny_log("originalCalledParty:<%s>\n",originalCalledParty);
 	skinny_log("lastRedirectingParty:<%s>\n",lastRedirectingParty);
-	
-	strncpy(ss->called.number,calledParty,sizeof(ss->called.number));
+
+	if(ss->called.number[0] == 0)
+	{
+		strncpy(ss->called.number,calledParty,sizeof(ss->called.number));
+	}
+	else
+	{
+		if(0 ==strncmp(ss->called.number,calledParty,strlen(calledParty)))
+		{
+		
+		}
+		else
+		{
+			skinny_log("calledParty is changed from <%s> to <%s> \n",ss->called.number,calledParty);
+			if(ss->skinny_callstate_connected == 1)
+			{
+				skinny_log("callstate is connected, update the called number\n");
+				strncpy(ss->called_group_number,
+					ss->called.number,sizeof(ss->called_group_number));
+				/* update the new called number ....2018-12-3 */
+				strncpy(ss->called.number,calledParty,sizeof(ss->called.number));
+				
+			}
+		}
+	}
 	strncpy(ss->calling.number,callingParty,sizeof(ss->calling.number));
 	skinny_log("I get called number %s,calling number %s \n",
     	ss->called.number,ss->calling.number);
@@ -973,7 +996,10 @@ void handle_callinfo2_function(skinny_opcode_map_t* skinny_op, u8* msg,u32 len,
 	skinny_log("lastRedirectingPartyName:<%s>\n",lastRedirectingPartyName);
 	LOAD_STR_LINE(p, HuntPilotNumber, 127, 0);
 	skinny_log("HuntPilotNumber:<%s>\n",HuntPilotNumber);
-
+	
+/* sccp当被叫时，会有HuntPilotNumber，则把电话自己的号码放到called里。 */
+/* SCCP为主叫时，callinfov2里不会有HuntPilotNumber，
+但 前后callinfoV2的报文里 calledParty 会变化，由'组号' 变成 '组员的号码'。*/	
 	if(HuntPilotNumber[0] !=0)
 	{
 		skinny_log("Bingo, I get a huntPilotNumber, "
@@ -981,8 +1007,9 @@ void handle_callinfo2_function(skinny_opcode_map_t* skinny_op, u8* msg,u32 len,
 		if(g_LineStatV2_lineDirNumber[0] != 0)
 		{
 			strncpy(ss->called.number,g_LineStatV2_lineDirNumber,sizeof(ss->called.number));
-		
 		}
+/* 把HuntPilotNumber放到called_group_number里，这是新增加的字体，会上报到平台。2018-12-3 */		
+		strncpy(ss->called_group_number,HuntPilotNumber,sizeof(ss->called_group_number));
 	}
 	update_rtp_session_number(ss);
 	return;

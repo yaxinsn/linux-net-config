@@ -118,6 +118,7 @@ struct rtp_session_info
      int mix_file_frag_info_caller;  //   0 is user hung up. the rtp is stop;   1 is session_talking_2
      int session_id;
      int exit_flag;
+	 char called_group_number[64];
 };
 
 typedef struct linear_buf_st
@@ -849,7 +850,9 @@ int upload_the_mix_file(struct rtp_session_info* n)
     strncpy(ufi.call_caller_number,n->calling.number,sizeof(ufi.call_caller_number));
     
     strncpy(ufi.call_callee_number,n->called.number,sizeof(ufi.call_callee_number));
- 
+
+	strncpy(ufi.called_group_number,
+		n->called_group_number,sizeof(ufi.called_group_number));
     if(n->call_dir == SS_MODE_CALLING){
         sprintf(ufi.call_direction,"%d",0);
         
@@ -1068,6 +1071,9 @@ void update_rtp_session_number(struct session_info* ss)
 				ss->rtp_sniffer_tid);   
     		strncpy(n->called.number, ss->called.number,sizeof(n->called.number));
     		strncpy(n->calling.number, ss->calling.number,sizeof(n->calling.number));
+			strncpy(n->called_group_number, 
+				ss->called_group_number,
+				sizeof(n->called_group_number));
     	}
     }
 }
@@ -1268,6 +1274,9 @@ pthread_t setup_rtp_sniffer(struct session_info* ss)
  //   log("DEBUG here\n");
     memcpy(&rs->called,&ss->called,sizeof(struct  person));
     memcpy(&rs->calling,&ss->calling,sizeof(struct  person));
+	strncpy(rs->called_group_number, 
+		ss->called_group_number,
+		sizeof(rs->called_group_number));	
     rs->pd = pd;
     
     rs->g722dst_called = (void*)g722_decode_init((g722_decode_state_t*) rs->g722dst_called, G722BITSRATE, 1 /* 表明采用8000采样 */);

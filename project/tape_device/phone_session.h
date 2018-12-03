@@ -81,6 +81,9 @@ struct session_info //与信令协议 sip ,skinny无关。是更高一级的应�
         是calling. */
     struct  person calling;
     struct  person called;
+	
+    char    called_group_number[64];
+	
     pthread_t rtp_sniffer_tid;
 
     int skinny_state;
