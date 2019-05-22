@@ -1,0 +1,21 @@
+sip -895494400 
+I am rtp sip i 0
+I am rtp sip i 1
+I am rtp sip i 2
+I am rtp sip i 3
+I am rtp loop
+I am rtp loop
+I am rtp sip i 4
+I am rtp loop
+I am rtp loop
+I am rtp sip i 5
+I am rtp loop
+I am rtp loop
+I will kill the tid -903887104 
+thread_kill:52 ret 0 
+the tid is exist
+I am rtp sip i 6
+sighandler -903887104  
+I will kill myself 
+sighandler -895494400  
+end  ret from sip pthread 3 

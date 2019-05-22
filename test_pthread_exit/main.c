@@ -19,6 +19,8 @@ void sighandler(int s)
 	int retval = 3;
 	printf("%s:%d sighandler %u  \n",__func__,__LINE__,pthread_self());
 //	pthread_exit(&retval);
+	printf("sighandler_sip %d exit---------------- \n",pthread_self());
+	exit(0);
 }
 
 void* sniffer_rtp_loop(void* arg)
@@ -62,8 +64,9 @@ int thread_kill(pthread_t thread_id)
 void sighandler_sip(int s)
 {
 	int retval = 9;
-	printf("sighandler_sip %d  \n",pthread_self());
-	pthread_exit(&retval);
+	printf("sighandler_sip %d exit---------------- \n",pthread_self());
+//	pthread_exit(&retval);
+	exit(0);
 }
 void* sniffer_sip_loop(void* arg)
 {
@@ -78,6 +81,7 @@ void* sniffer_sip_loop(void* arg)
 		if( i == 3){
 			tid = __sniffer_rtp_start();
 			pthread_detach(tid);
+			exit(0);
 		}
 		if(i ==6 || i == 5){
 			printf("I will kill the tid %d \n",tid);
