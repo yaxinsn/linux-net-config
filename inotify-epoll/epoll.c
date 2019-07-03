@@ -100,7 +100,7 @@ void readInotify(void *pIn)
 			 printf("%s:%d %d\n",__func__,__LINE__,i);
 			 
 			 epoll_inotify_array[i]->Callback(epoll_inotify_array[i]);
-			 epoll_inotify_array[i]->iWatchFd = inotify_add_watch(iInotifyFd, epoll_inotify_array[i]->fileName, IN_MODIFY);
+			 //epoll_inotify_array[i]->iWatchFd = inotify_add_watch(iInotifyFd, epoll_inotify_array[i]->fileName, IN_MODIFY);
 			 
 			 return ;
 		 }
