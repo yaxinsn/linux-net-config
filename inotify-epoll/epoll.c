@@ -13,6 +13,9 @@
 
 struct epoll_event stEv;
 struct inotify_event stInEv;
+
+
+	
 	
 #define EPOLL_MAX_FD 255
 typedef void (*_EPOLL_CALLBACK)(void *);
@@ -31,30 +34,13 @@ typedef struct _epoll_Ino
 	_EPOLL_CALLBACK Callback;
 }_epoll_Ino_s;
 
-/*********************************************************************/
-#if 0
-read_usb(void *pIn)
-{
-	char buf[1024] = {0};
-	_epoll_Ino_s *pstInoData = pIn;
-	 
-	        DIR *pdir = opendir(pstInoData->fileName);
 
-	 if(pdir 0)////////dead
-	 {
-		 perror(" read_usb ");
-		 printf("read_usb file %s \n", pstInoData->fileName);
-		 exit(0);
-	 }
-	 
-	 read(fd,buf,1024);
-	 printf("%s:%d <%s> \n",__func__,__LINE__,buf);
-}
-void listen_usb()
-{
-	 resigterEpollInofity("/sys/bus/usb/devices",read_usb);
-}
-#endif
+int iEpollFd;
+int iInotifyFd;
+_epoll_Ino_s * epoll_inotify_array[128];
+int epoll_inotify_array_count = 0;
+/*********************************************************************/
+
 
 void read_testfile(void *pIn)
 {
@@ -76,7 +62,7 @@ void listen_testfile()
 {
 	
 	
-	 resigterEpollInofity("/proc/kmsg",read_testfile);
+	 resigterEpollInofity("./testfile",read_testfile);
 	 
 	 printf("%s:%d end \n",__func__,__LINE__);
 }
@@ -88,37 +74,6 @@ void listen_testfile()
 /***************************************************************************/
 
 
-
-
-int iEpollFd;
-int iInotifyFd;
-_epoll_Ino_s * epoll_inotify_array[128];
-int epoll_inotify_array_count = 0;
-
-
-
-int resigterEpollInofity(char* fileName,_EPOLL_CALLBACK func)
-{
-	int fd = inotify_add_watch(iInotifyFd, fileName, IN_MODIFY);
-    if (-1 == fd)
-    {
-		return -1;
-	}
-	_epoll_Ino_s* p = (_epoll_Ino_s *)malloc(sizeof(_epoll_Ino_s));
-	if(NULL == p)
-	{
-		printf("resigterEpollInofity: ");
-	}
-	p->iWatchFd = fd;
-	p->fileName = strdup(fileName);
-	p->Callback = func;
-	if(epoll_inotify_array_count<128)
-	{
-		epoll_inotify_array[epoll_inotify_array_count] = p;
-		epoll_inotify_array_count++;
-	}
-	return 0;
-}
 void readInotify(void *pIn)
 {
 	
@@ -152,6 +107,7 @@ void readInotify(void *pIn)
 	 }
 	 printf("%s:%d \n",__func__,__LINE__);
 }
+
 void listenInotify()
 {
 
@@ -159,6 +115,32 @@ void listenInotify()
 	 resigterEpoll(iInotifyFd,readInotify);
 	 printf("%s:%d \n",__func__,__LINE__);
 }
+
+int resigterEpollInofity(char* fileName,_EPOLL_CALLBACK func)
+{
+	int fd = inotify_add_watch(iInotifyFd, fileName, IN_MODIFY);
+    if (-1 == fd)
+    {
+		return -1;
+	}
+	_epoll_Ino_s* p = (_epoll_Ino_s *)malloc(sizeof(_epoll_Ino_s));
+	if(NULL == p)
+	{
+		printf("resigterEpollInofity: ");
+	}
+	p->iWatchFd = fd;
+	p->fileName = strdup(fileName);
+	p->Callback = func;
+	if(epoll_inotify_array_count<128)
+	{
+		epoll_inotify_array[epoll_inotify_array_count] = p;
+		epoll_inotify_array_count++;
+	}
+	return 0;
+}
+
+
+/***************************************************************************/
 
 void read_kmsg(void *pIn)
 {
@@ -176,6 +158,10 @@ void listen_kmsg()
 	printf("-%s:%d- fd %d \n",__func__,__LINE__,fd);
 	 resigterEpoll(fd,read_kmsg);
 }
+
+/***************************************************************************/
+
+
 
 int resigterEpoll(int IFd,_EPOLL_CALLBACK func)
 {
@@ -202,16 +188,7 @@ static void* createEpollPthread(void *argv)
 	struct epoll_event astEvents[EPOLL_MAX_FD]     = {0};
 	_EPOLL_ARGS_S *pstEpollArg              = NULL;
 
-	
-	  
-	iEpollFd = epoll_create(EPOLL_MAX_FD);
 	listenInotify();
-	if(iEpollFd < 0)
-	{
-		perror("main::epoll_create Fail!");
-		exit(1);
-	}
-
 	for(;;)
 	{
 		iFdNum = epoll_wait(iEpollFd,astEvents,EPOLL_MAX_FD,-1);
@@ -235,13 +212,22 @@ static void* createEpollPthread(void *argv)
 int main(int argc,char *argv[])
 {
 	int tid;
+   iInotifyFd = inotify_init();
+
+	//listenInotify();
+	//listen_testfile();
+	iEpollFd = epoll_create(EPOLL_MAX_FD);
+	if(iEpollFd < 0)
+	{
+		perror("main::epoll_create Fail!");
+		exit(1);
+	}
+	listen_testfile();
+	//listen_kmsg();
 	if(pthread_create(&tid,NULL,createEpollPthread,(void*)0))
 	{
 		perror("pthread_create!");
 	}
-	iInotifyFd = inotify_init();
-	listen_testfile();
-	listen_kmsg();
 	while(1)
 	{
 		sleep(100);
