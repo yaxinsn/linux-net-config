@@ -58,12 +58,12 @@ typedef struct epoll_ctx_t
 Function ： create_epoll
 Desc:
              建立epoll ctx
-             count 表示侦听多少个，最大为1024
+             
              timeout为超时的时间，单位是s, -1表示永不超时。
 
 return:     返回 0成功， -1 失败。
 ***********************************************************/
-epoll_ctx_st* create_epoll(int count,int timeout);
+epoll_ctx_st* create_epoll (int timeout);
 
 
 /************************************************************

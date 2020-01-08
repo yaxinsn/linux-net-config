@@ -148,7 +148,7 @@ void epoll_loop(epoll_ctx_st* ctx)
 }
 
 
-epoll_ctx_st* create_epoll(int count,int timeout)
+epoll_ctx_st* create_epoll(int timeout)
 
 {
     int fd = 0;
@@ -158,13 +158,11 @@ epoll_ctx_st* create_epoll(int count,int timeout)
     {
         return NULL;
     }
-    if(count > EPOLL_MAX_FD)
-        count = EPOLL_MAX_FD;
 
     INIT_LIST_HEAD(&ctx->head);
     pthread_mutex_init(&ctx->head_lock, NULL);
-
-	fd = epoll_create(count);
+	//epoll_create(size) size参数无用。
+	fd = epoll_create(1);
 	if(fd < 0)
 	{
         epoll_debug ("main::epoll_create Fail!  %s", strerror (errno));

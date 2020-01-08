@@ -8,7 +8,7 @@ COBJS=$(CSOURCE:.c=.o)
 
 OBJS=$(COBJS)
 
-all: $(TARGET)
+all: $(TARGET) client service
 
 
 $(COBJS): %.o: %.c
@@ -19,7 +19,13 @@ $(TARGET): $(OBJS)
 
 
 
+service:unix_service.o $(TARGET)
+	gcc $(CFLAGS) -o $@ $^
+
+client:	unix_client.c
+	gcc $(CFLAGS) -o $@ $<
+
 
 clean:
-	rm e *.o $(TARGET) -rf
+	rm  *.o $(TARGET) client -rf
 
